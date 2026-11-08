@@ -91,6 +91,11 @@
     .account-state{font-size:12px;color:var(--muted);margin:0;overflow-wrap:anywhere}
     .account-actions{display:flex;gap:8px;flex-wrap:wrap}
     .account-actions .btn{min-height:44px}
+    .email-auth{display:grid;grid-template-columns:1fr;gap:9px;width:100%;margin-top:12px}
+    .email-auth input{width:100%;min-height:46px}
+    .email-auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .email-auth-actions .btn{min-height:46px}
+    .auth-note{font-size:12px;color:var(--muted);margin:0}
     .sync-good{color:var(--accent)}
     .sync-warn{color:var(--amber)}
     .hidden{display:none!important}
@@ -114,11 +119,21 @@
     <div class="panel account-panel">
       <div class="account-copy">
         <p class="account-title" id="account-title">Cloud sync not connected</p>
-        <p class="account-state" id="account-state">Sign in with Google to sync your videos across devices.</p>
+        <p class="account-state" id="account-state">Create an account or sign in to sync your videos across devices.</p>
       </div>
       <div class="account-actions">
-        <button class="btn primary" id="signin-btn" type="button">Sign in with Google</button>
+        <button class="btn secondary" id="signin-btn" type="button">Sign in with Google</button>
         <button class="btn secondary hidden" id="signout-btn" type="button">Sign out</button>
+      </div>
+      <div class="email-auth" id="email-auth">
+        <input id="email-address" type="email" autocomplete="email" placeholder="Email address" aria-label="Email address">
+        <input id="email-password" type="password" autocomplete="current-password" minlength="6" placeholder="Password (at least 6 characters)" aria-label="Password">
+        <div class="email-auth-actions">
+          <button class="btn primary" id="email-signin-btn" type="button">Sign in</button>
+          <button class="btn secondary" id="email-signup-btn" type="button">Create account</button>
+        </div>
+        <button class="btn secondary" id="reset-password-btn" type="button">Forgot password?</button>
+        <p class="auth-note">Your videos are private to your account. Use the same email and password on each device.</p>
       </div>
     </div>
   </section>
@@ -181,6 +196,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
   onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {
@@ -349,10 +365,12 @@ import {
       cloudIds = new Set();
       $("#signin-btn").classList.remove("hidden");
       $("#signout-btn").classList.add("hidden");
-      setAccount("Cloud sync not connected", "Your current device data remains local. Sign in with Google to sync it.");
+      setAccount("Cloud sync not connected", "Create an account or sign in with email and password. Google sign-in is optional.");
+      $("#email-auth").classList.remove("hidden");
       return;
     }
     $("#signin-btn").classList.add("hidden");
+    $("#email-auth").classList.add("hidden");
     $("#signout-btn").classList.remove("hidden");
     setAccount("Connecting your private tracker…", "Checking your cloud records.");
     loadingCloud = true;
@@ -450,6 +468,41 @@ import {
       }
     }
   });
+  async function emailAuth(action) {
+    const email = $("#email-address").value.trim();
+    const password = $("#email-password").value;
+    if (!email || !password) { alert("Enter your email address and password."); return; }
+    if (password.length < 6) { alert("Password must be at least 6 characters."); return; }
+    const buttons = ["#email-signin-btn","#email-signup-btn"];
+    buttons.forEach(id=>$(id).disabled=true);
+    try {
+      if (!auth) throw new Error("Firebase Authentication is not ready. Refresh the page and try again.");
+      if (action === "signup") await createUserWithEmailAndPassword(auth,email,password);
+      else await signInWithEmailAndPassword(auth,email,password);
+    } catch(err) {
+      console.error("Email/password authentication error:",err);
+      const messages = {
+        "auth/email-already-in-use":"This email already has an account. Tap Sign in instead.",
+        "auth/invalid-email":"Please enter a valid email address.",
+        "auth/weak-password":"Choose a stronger password with at least 6 characters.",
+        "auth/user-not-found":"No account found for this email. Tap Create account first.",
+        "auth/wrong-password":"Incorrect password. Try again or use Forgot password.",
+        "auth/invalid-credential":"Email or password is incorrect. Check them or reset your password.",
+        "auth/operation-not-allowed":"Email/Password sign-in is not enabled in Firebase Console yet.",
+        "auth/too-many-requests":"Too many attempts. Wait a while and try again."
+      };
+      alert(messages[err.code] || `${err.code || "Error"}: ${err.message || "Please try again."}`);
+    } finally { buttons.forEach(id=>$(id).disabled=false); }
+  }
+  $("#email-signin-btn").addEventListener("click",()=>emailAuth("signin"));
+  $("#email-signup-btn").addEventListener("click",()=>emailAuth("signup"));
+  $("#reset-password-btn").addEventListener("click",async()=>{
+    const email=$("#email-address").value.trim();
+    if(!email){alert("Enter your email address first, then tap Forgot password?");return;}
+    try { await sendPasswordResetEmail(auth,email); alert("Password reset email sent. Check your inbox and spam folder."); }
+    catch(err){ alert(err.code==="auth/user-not-found"?"No account found for this email.":`${err.code || "Error"}: ${err.message}`); }
+  });
+
   $("#signin-btn").addEventListener("click",async()=>{
     const button = $("#signin-btn");
     button.disabled = true;

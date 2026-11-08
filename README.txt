@@ -1,36 +1,33 @@
-MY INFO HOME TRACKER — FIREBASE VERSION
+MY INFO HOME TRACKER — EMAIL/PASSWORD + GOOGLE FIREBASE VERSION
 
-Files:
+Files to upload to the ROOT of your existing GitHub Pages repository:
 - index.html
 - manifest.webmanifest
 - sw.js
 - logo.png
 - icon-192.png
 - icon-512.png
+- README.txt (optional)
 
-Deploy all files to the ROOT of your existing GitHub Pages repository.
+FIREBASE SETUP (one-time)
+1. Open Firebase Console > Authentication > Sign-in method.
+2. Enable Email/Password and save. This is required for email/password accounts.
+3. Google provider may remain enabled as an optional sign-in method.
+4. Authentication > Settings > Authorized domains: make sure your GitHub Pages hostname is listed (for example, username.github.io).
+5. Firestore rules must allow only the signed-in user to access users/{userId}/videos/{videoId}, with request.auth != null and request.auth.uid == userId.
 
-Firebase project:
-- Project ID: my-info-home-tracker1
-- Authentication: Google provider enabled
-- Firestore collection path: users/{userId}/videos/{videoId}
-- Firestore rules must match that path and restrict access to request.auth.uid == userId.
+USING THE TRACKER
+- Create account: enter an email and a password of at least 6 characters, then tap Create account.
+- Returning user: enter the same email/password and tap Sign in.
+- Forgot password: enter your email and tap Forgot password? to receive a reset link.
+- Google sign-in remains available as an alternative.
+- Each Firebase account has its own private video collection. Other users cannot see your records.
 
-IMPORTANT FIRST DEPLOY:
-1. In Firebase Console > Authentication > Settings > Authorized domains, add your exact GitHub Pages hostname, for example YOUR_GITHUB_USERNAME.github.io (hostname only, no https or path).
-2. Make sure Google sign-in provider is enabled and a support email is selected.
-3. Confirm Firestore rules are published.
-4. Deploy all files to GitHub Pages, replacing the old files.
-5. Open the GitHub Pages URL online and sign in with the Google account you intend to use.
-6. On first sign-in, existing local tracker records are copied to Firestore if that account's cloud collection is empty. If cloud records already exist, cloud records become the device's current list.
-7. Keep the JSON export as an additional backup.
+DEPLOY
+1. Extract this ZIP.
+2. In your existing GitHub repository, replace the old app files with these files.
+3. Commit directly to main and wait for GitHub Pages to deploy.
+4. Open your existing tracker URL. If an old version remains cached, close the installed app, open the URL in Chrome, refresh, then reopen the app.
 
-Privacy/security:
-- The Firebase web config is client-side configuration, not a service-account private key.
-- Firestore security rules enforce per-user access.
-- Do not publish service-account private keys.
-- Consider restricting the Firebase API key in Google Cloud Console to your GitHub Pages HTTP referrer and the Firebase APIs this app uses.
-
-Offline:
-- Firestore persistent local cache is enabled. After signing in online at least once, cached data can be viewed offline and offline writes are queued for sync when connectivity returns.
-- Do not clear site data while offline if there are pending changes.
+DATA SAFETY
+Keep your existing Firebase project and Firestore data. Do not delete the project. Export a JSON backup occasionally. Firebase web config is client-side configuration, not a service-account private key. Firestore security rules—not hiding the config—protect user records.
