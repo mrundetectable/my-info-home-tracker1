@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7f4">
+  <meta name="description" content="A simple offline tracker for your YouTube channel videos.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon-192.png">
+  <title>My Info Home tracker</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#f5f7f4;--surface:#fff;--surface2:#eef2ed;--text:#17221b;--muted:#657168;--line:#dce4dc;--accent:#176b43;--accent-soft:#e2f1e8;--amber:#98600b;--amber-soft:#fff0d2;--danger:#b42318;--shadow:0 2px 10px rgba(20,40,25,.045)}
+    @media(prefers-color-scheme:dark){:root{--bg:#111713;--surface:#1a231d;--surface2:#222e26;--text:#edf4ee;--muted:#a4b1a7;--line:#344238;--accent:#8bd5a9;--accent-soft:#243d2e;--amber:#f1c16e;--amber-soft:#40331e;--danger:#ff8c82;--shadow:0 2px 12px rgba(0,0,0,.15)}}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:"Noto Sans Telugu","Noto Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.45}
+    .wrap{width:min(100%,620px);margin:0 auto;padding:22px 16px calc(36px + env(safe-area-inset-bottom))}
+    header{padding:8px 2px 20px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-logo{width:62px;height:62px;object-fit:contain;border-radius:14px;flex:0 0 62px}
+    h1{font-size:21px;line-height:1.2;letter-spacing:-.5px;margin:0 0 7px;font-weight:750}
+    .summary{margin:0;color:var(--muted);font-size:14px}
+    section{margin:0 0 22px}
+    .section-title{font-size:15px;font-weight:700;margin:0 0 11px}
+    .panel,.video-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+    .panel{padding:15px}
+    label{display:block;font-size:13px;font-weight:650;color:var(--muted);margin:0 0 6px}
+    input,select,button{font:inherit}
+    input[type=text],input[type=date],select{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface);color:var(--text);font-size:15px;outline:none}
+    input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+    .field{margin-bottom:13px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+    .segmented{display:flex;gap:7px}
+    .segmented button,.chip{min-height:42px;border:1px solid var(--line);border-radius:10px;padding:8px 13px;background:var(--surface2);color:var(--text);font-weight:650;font-size:14px;flex:1}
+    .segmented button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+    .btn{min-height:46px;border:0;border-radius:11px;padding:10px 15px;font-weight:700;font-size:15px;cursor:pointer}
+    .primary{background:var(--accent);color:#fff}
+    @media(prefers-color-scheme:dark){.primary{color:#102016}}
+    .secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+    .danger{color:var(--danger);background:transparent;border:1px solid var(--line)}
+    .add-btn{width:100%;margin-top:2px}
+    .filters{display:flex;gap:8px;margin:0 0 13px}
+    .chip{flex:0 0 auto;min-width:64px;border-radius:999px;min-height:39px}
+    .chip.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+    .video-list{display:flex;flex-direction:column;gap:11px}
+    .video-card{padding:14px}
+    .video-card.uploaded{opacity:.72}
+    .card-top{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+    .topic{font-size:16px;font-weight:750;line-height:1.35;overflow-wrap:anywhere;margin:1px 0 7px}
+    .tag-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .tag,.example,.status-pill{font-size:11px;font-weight:750;padding:4px 8px;border-radius:999px;white-space:nowrap}
+    .tag.long{background:var(--accent-soft);color:var(--accent)}
+    .tag.short{background:var(--amber-soft);color:var(--amber)}
+    .example{background:var(--surface2);color:var(--muted);font-weight:650}
+    .status-pill{background:var(--surface2);color:var(--muted);display:inline-block}
+    .status-pill.scheduled{background:var(--amber-soft);color:var(--amber)}
+    .status-pill.uploaded{background:var(--accent-soft);color:var(--accent)}
+    .stage-line{display:flex;justify-content:space-between;gap:8px;margin:14px 0 8px;font-size:13px}
+    .stage-line strong{font-weight:700}
+    .stage-line span{color:var(--muted);white-space:nowrap}
+    .progress{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:12px}
+    .progress i{height:6px;border-radius:6px;background:var(--surface2);display:block}
+    .progress i.done{background:var(--accent)}
+    .meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+    .date-text{font-size:12px;color:var(--muted)}
+    .card-actions{display:grid;grid-template-columns:1fr;gap:8px}
+    .card-actions .btn{width:100%}
+    .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .edit-grid select,.edit-grid input{min-width:0;min-height:44px;font-size:13px;padding:8px}
+    .delete-row{display:flex;justify-content:flex-end}
+    .delete-row .btn{min-height:40px;padding:7px 12px;font-size:13px}
+    .empty{padding:23px 15px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:14px}
+    .backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .backup-note{font-size:12px;color:var(--muted);margin:10px 0 0}
+    .hidden{display:none!important}
+    footer{font-size:12px;color:var(--muted);text-align:center;padding:8px 0}
+    @media(min-width:500px){.wrap{padding-left:20px;padding-right:20px}.panel{padding:17px}.video-card{padding:16px}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="brand">
+      <img class="brand-logo" src="./logo.png" alt="My Info Home logo">
+      <div>
+        <h1>My Info Home tracker</h1>
+        <p class="summary" id="summary">0 in progress · 0 scheduled · 0 uploaded</p>
+      </div>
+    </div>
+  </header>
+
+  <section aria-labelledby="add-title">
+    <h2 class="section-title" id="add-title">Add a video</h2>
+    <form class="panel" id="add-form">
+      <div class="field">
+        <label for="topic">Topic name</label>
+        <input id="topic" name="topic" type="text" maxlength="180" placeholder="వీడియో topic name" required>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label>Length</label>
+          <div class="segmented" role="group" aria-label="Video length">
+            <button type="button" data-length="Long" aria-pressed="false">Long</button>
+            <button type="button" data-length="Short" aria-pressed="true">Short</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="stage">Current stage</label>
+          <select id="stage"></select>
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="status">Status</label>
+          <select id="status"><option>Not yet</option><option>Scheduled</option><option>Uploaded</option></select>
+        </div>
+        <div class="field">
+          <label for="date">Upload date (optional)</label>
+          <input id="date" type="date">
+        </div>
+      </div>
+      <button class="btn primary add-btn" type="submit">Add topic</button>
+    </form>
+  </section>
+
+  <section aria-label="Videos">
+    <div class="filters" role="group" aria-label="Filter videos">
+      <button class="chip active" data-filter="All" aria-pressed="true">All</button>
+      <button class="chip" data-filter="Long" aria-pressed="false">Long</button>
+      <button class="chip" data-filter="Short" aria-pressed="false">Short</button>
+    </div>
+    <div class="video-list" id="video-list"></div>
+  </section>
+
+  <section aria-labelledby="backup-title">
+    <h2 class="section-title" id="backup-title">Backup</h2>
+    <div class="panel">
+      <div class="backup-actions">
+        <button class="btn secondary" id="export-btn" type="button">Export data</button>
+        <button class="btn secondary" id="import-btn" type="button">Import data</button>
+        <input class="hidden" id="import-file" type="file" accept="application/json,.json">
+      </div>
+      <p class="backup-note">Your videos stay on this device. Export a backup before clearing browser data or changing phones.</p>
+    </div>
+  </section>
+  <footer>Stored locally on this device · Works offline after first visit</footer>
+</main>
+<script>
+(() => {
+  const STAGES = ["Topic","5-Rule","Scripting","Voice over","Footage","Edit","SEO","Upload"];
+  const KEY = "channel-tracker-v1";
+  const $ = s => document.querySelector(s);
+  const listEl = $("#video-list");
+  let videos = [];
+  let filter = "All";
+  let selectedLength = "Short";
+
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+  const fmtDate = value => {
+    if (!value) return "";
+    const [y,m,d] = value.split("-").map(Number);
+    return new Date(y,m-1,d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+  };
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const examples = () => [
+    {id:"example-1",topic:"ఎండను చూడగానే తుమ్ము ఎందుకు వస్తుంది?",length:"Short",stage:2,status:"Not yet",date:"",createdAt:Date.now()-2000,example:true},
+    {id:"example-2",topic:"Why do airplane windows have tiny holes?",length:"Short",stage:4,status:"Scheduled",date:"2026-11-12",createdAt:Date.now()-1000,example:true},
+    {id:"example-3",topic:"Japan car sticker — Koreisha mark",length:"Long",stage:6,status:"Uploaded",date:"2026-11-06",createdAt:Date.now(),example:true}
+  ];
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw === null) { videos = examples(); save(); }
+      else {
+        const parsed = JSON.parse(raw);
+        videos = Array.isArray(parsed) ? parsed.filter(validVideo).map(v=>({...v,example:!!v.example})) : examples();
+      }
+    } catch { videos = examples(); }
+  }
+  function validVideo(v) {
+    return v && typeof v.topic==="string" && ["Long","Short"].includes(v.length) &&
+      Number.isInteger(v.stage) && v.stage>=0 && v.stage<8 &&
+      ["Not yet","Scheduled","Uploaded"].includes(v.status) &&
+      (typeof v.date==="string") && typeof v.id==="string";
+  }
+  function save(){ localStorage.setItem(KEY,JSON.stringify(videos)); }
+  function stageOptions(selected) {
+    return STAGES.map((s,i)=>`<option value="${i}" ${i===selected?"selected":""}>${s}</option>`).join("");
+  }
+  function statusOptions(selected) {
+    return ["Not yet","Scheduled","Uploaded"].map(s=>`<option ${s===selected?"selected":""}>${s}</option>`).join("");
+  }
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function render() {
+    const inProgress = videos.filter(v=>v.status==="Not yet").length;
+    const scheduled = videos.filter(v=>v.status==="Scheduled").length;
+    const uploaded = videos.filter(v=>v.status==="Uploaded").length;
+    $("#summary").textContent = `${inProgress} in progress · ${scheduled} scheduled · ${uploaded} uploaded`;
+    const visible = videos.filter(v=>filter==="All"||v.length===filter)
+      .sort((a,b)=>(a.status==="Uploaded")-(b.status==="Uploaded") || b.createdAt-a.createdAt);
+    if (!visible.length) { listEl.innerHTML='<div class="empty">No videos here yet.</div>'; return; }
+    listEl.innerHTML = visible.map(v=>{
+      const stage=STAGES[v.stage], count=v.stage+1, isLast=v.stage===7;
+      const progress=STAGES.map((_,i)=>`<i class="${i<=v.stage?"done":""}"></i>`).join("");
+      const statusClass=v.status==="Uploaded"?"uploaded":v.status==="Scheduled"?"scheduled":"";
+      const dateText=v.date?`· ${fmtDate(v.date)}`:"";
+      const nextLabel=isLast?"Mark uploaded":`Next: ${STAGES[v.stage+1]}`;
+      const nextDisabled=isLast&&v.status==="Uploaded";
+      return `<article class="video-card ${v.status==="Uploaded"?"uploaded":""}" data-id="${esc(v.id)}">
+        <div class="card-top"><div>
+          <div class="topic">${esc(v.topic)}</div>
+          <div class="tag-row"><span class="tag ${v.length.toLowerCase()}">${v.length}</span>${v.example?'<span class="example">Example</span>':""}</div>
+        </div></div>
+        <div class="stage-line"><strong>${esc(stage)}</strong><span>${count} of 8</span></div>
+        <div class="progress" aria-label="${count} of 8 stages complete">${progress}</div>
+        <div class="meta"><span class="status-pill ${statusClass}">${esc(v.status)}</span><span class="date-text">${dateText}</span></div>
+        <div class="card-actions">
+          <button class="btn primary next-btn" type="button" ${nextDisabled?"disabled":""}>${nextLabel}</button>
+          <div class="edit-grid">
+            <select class="stage-edit" aria-label="Jump to stage">${stageOptions(v.stage)}</select>
+            <select class="status-edit" aria-label="Edit status">${statusOptions(v.status)}</select>
+            <input class="date-edit" type="date" aria-label="Edit upload date" value="${esc(v.date)}">
+            <button class="btn secondary delete-btn" type="button">Delete</button>
+          </div>
+        </div>
+      </article>`;
+    }).join("");
+  }
+  function update(id, patch) {
+    const v=videos.find(x=>x.id===id); if(!v)return;
+    Object.assign(v,patch); save(); render();
+  }
+
+  STAGES.forEach((s,i)=>$("#stage").add(new Option(s,i)));
+  document.querySelectorAll("[data-length]").forEach(btn=>btn.addEventListener("click",()=>{
+    selectedLength=btn.dataset.length;
+    document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b===btn)));
+  }));
+  document.querySelectorAll("[data-filter]").forEach(btn=>btn.addEventListener("click",()=>{
+    filter=btn.dataset.filter;
+    document.querySelectorAll("[data-filter]").forEach(b=>{b.classList.toggle("active",b===btn);b.setAttribute("aria-pressed",String(b===btn));});
+    render();
+  }));
+  $("#add-form").addEventListener("submit",e=>{
+    e.preventDefault();
+    const topic=$("#topic").value.trim(); if(!topic)return;
+    videos.push({id:uid(),topic,length:selectedLength,stage:Number($("#stage").value),status:$("#status").value,date:$("#date").value,createdAt:Date.now(),example:false});
+    save(); $("#add-form").reset(); $("#stage").value="0"; $("#status").value="Not yet";
+    selectedLength="Short";
+    document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.length==="Short")));
+    render(); $("#topic").focus();
+  });
+  listEl.addEventListener("change",e=>{
+    const card=e.target.closest("[data-id]"); if(!card)return;
+    const id=card.dataset.id;
+    if(e.target.matches(".stage-edit")) update(id,{stage:Number(e.target.value)});
+    if(e.target.matches(".status-edit")) update(id,{status:e.target.value});
+    if(e.target.matches(".date-edit")) update(id,{date:e.target.value});
+  });
+  listEl.addEventListener("click",e=>{
+    const card=e.target.closest("[data-id]"); if(!card)return;
+    const id=card.dataset.id, v=videos.find(x=>x.id===id); if(!v)return;
+    if(e.target.matches(".next-btn")){
+      if(v.stage===7){update(id,{status:"Uploaded",date:v.date||todayISO()});}
+      else update(id,{stage:v.stage+1});
+    }
+    if(e.target.matches(".delete-btn")){
+      if(e.target.dataset.confirm==="yes"){
+        videos=videos.filter(x=>x.id!==id); save(); render();
+      } else {
+        e.target.dataset.confirm="yes"; e.target.textContent="Tap again to delete";
+        e.target.classList.add("danger");
+        setTimeout(()=>{const current=card.querySelector(".delete-btn");if(current&&current.dataset.confirm==="yes"){current.dataset.confirm="";current.textContent="Delete";current.classList.remove("danger");}},3500);
+      }
+    }
+  });
+  $("#export-btn").addEventListener("click",()=>{
+    const blob=new Blob([JSON.stringify({app:"Channel Tracker",version:1,exportedAt:new Date().toISOString(),videos},null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url;a.download=`channel-tracker-backup-${todayISO()}.json`;a.click();URL.revokeObjectURL(url);
+  });
+  $("#import-btn").addEventListener("click",()=>$("#import-file").click());
+  $("#import-file").addEventListener("change",async e=>{
+    const file=e.target.files[0]; if(!file)return;
+    try{
+      const parsed=JSON.parse(await file.text());
+      const incoming=Array.isArray(parsed)?parsed:parsed.videos;
+      if(!Array.isArray(incoming)||!incoming.every(validVideo))throw new Error("Invalid backup");
+      if(!confirm(`Import ${incoming.length} videos? This replaces the videos currently on this device.`))return;
+      videos=incoming.map(v=>({...v,example:!!v.example}));save();render();
+    }catch{alert("Could not import this file. Please choose a valid Channel Tracker JSON backup.");}
+    finally{e.target.value="";}
+  });
+  load(); render();
+  if("serviceWorker" in navigator && (location.protocol==="https:"||location.hostname==="localhost")){
+    window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+  }
+})();
+</script>
+</body>
+</html>
