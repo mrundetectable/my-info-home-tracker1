@@ -38,7 +38,24 @@
     .secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
     .danger{color:var(--danger);background:transparent;border:1px solid var(--line)}
     .add-btn{width:100%;margin-top:2px}
-    .filters{display:flex;gap:8px;margin:0 0 13px;overflow-x:auto;padding-bottom:2px}
+
+    .workflow-section{margin:0 0 18px}
+    .workflow-heading{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);padding:13px 14px;min-height:58px;font:inherit;cursor:pointer}
+    .workflow-heading>span{font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .workflow-heading small{font-size:11px;font-weight:500;color:var(--muted)}
+    .workflow-heading strong{font-size:18px;color:var(--accent);min-width:28px;text-align:right}
+    .workflow-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--muted)}
+    .topic-dot{background:#8a9290}.progress-dot{background:#3b82c4}.scheduled-dot{background:var(--amber)}.uploaded-dot{background:var(--accent)}
+    .workflow-list{padding-top:10px}.workflow-list.collapsed{display:none}
+    .workflow-list .empty{padding:15px}
+    .workflow-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+    .workflow-actions .btn{min-height:44px;font-size:13px;padding:8px}
+    .workflow-actions .wide{grid-column:1/-1}
+    .workflow-section:last-child .video-card{opacity:.78}
+    .mini-stage{font-size:12px;color:var(--muted);margin-top:8px}
+    .schedule-edit{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .schedule-edit input,.schedule-edit select{min-width:0;flex:1;min-height:42px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--surface);color:var(--text)}
+\n    .filters{display:flex;gap:8px;margin:0 0 13px;overflow-x:auto;padding-bottom:2px}
     .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 12px}
     .toolbar input,.toolbar select{min-width:0}
     .view-toggle{display:flex;gap:7px;margin:0 0 12px}
@@ -139,56 +156,26 @@
   </section>
 
   <section aria-labelledby="add-title">
-    <h2 class="section-title" id="add-title">Add a video</h2>
+    <h2 class="section-title" id="add-title">Add a new topic</h2>
     <form class="panel" id="add-form">
-      <div class="field">
-        <label for="topic">Topic name</label>
-        <input id="topic" name="topic" type="text" maxlength="180" placeholder="వీడియో topic name" required>
-      </div>
-      <div class="two">
-        <div class="field">
-          <label>Length</label>
-          <div class="segmented" role="group" aria-label="Video length">
-            <button type="button" data-length="Long" aria-pressed="false">Long</button>
-            <button type="button" data-length="Short" aria-pressed="true">Short</button>
-          </div>
-        </div>
-        <div class="field">
-          <label for="stage">Current stage</label>
-          <select id="stage"></select>
-        </div>
-      </div>
-      <div class="two">
-        <div class="field">
-          <label for="status">Status</label>
-          <select id="status"><option>Not yet</option><option>Scheduled</option><option>Uploaded</option></select>
-        </div>
-        <div class="field">
-          <label for="date">Upload date (optional)</label>
-          <input id="date" type="date">
-        </div>
-      </div>
-      <button class="btn primary add-btn" type="submit">Add topic</button>
+      <div class="field"><label for="topic">Topic name</label><input id="topic" name="topic" type="text" maxlength="180" placeholder="వీడియో topic name" required></div>
+      <div class="field"><label>Video type</label><div class="segmented" role="group" aria-label="Video type">
+        <button type="button" data-length="Long" aria-pressed="false">Long</button><button type="button" data-length="Short" aria-pressed="true">Short</button>
+      </div></div>
+      <button class="btn primary add-btn" type="submit">＋ Add to Topics list</button>
+      <p class="auth-note">New topics stay here until you decide to start working on them.</p>
     </form>
   </section>
 
-  <section aria-label="Videos">
+  <section aria-label="Content workflow">
     <div class="toolbar">
       <input id="search" type="text" placeholder="Search topics…" aria-label="Search topics">
-      <select id="stage-filter" aria-label="Filter by stage"><option value="All">All stages</option></select>
-      <select id="status-filter" aria-label="Filter by status"><option value="All">All statuses</option><option>Not yet</option><option>Scheduled</option><option>Uploaded</option></select>
-      <select id="sort-order" aria-label="Sort videos"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="date">Upload date</option></select>
+      <select id="sort-order" aria-label="Sort topics"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="date">Upload date</option></select>
     </div>
-    <div class="filters" role="group" aria-label="Filter videos">
-      <button class="chip active" data-filter="All" aria-pressed="true">All</button>
-      <button class="chip" data-filter="Long" aria-pressed="false">Long</button>
-      <button class="chip" data-filter="Short" aria-pressed="false">Short</button>
-    </div>
-    <div class="view-toggle" role="group" aria-label="Video display">
-      <button class="btn secondary" id="list-view" aria-pressed="true">List view</button>
-      <button class="btn secondary" id="calendar-view" aria-pressed="false">Calendar view</button>
-    </div>
-    <div class="video-list" id="video-list"></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="Topic"><span><i class="workflow-dot topic-dot"></i> Topics <small>Not started</small></span><strong id="count-Topic">0</strong></button><div class="video-list workflow-list" id="list-Topic"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="In progress"><span><i class="workflow-dot progress-dot"></i> Started working <small>In progress</small></span><strong id="count-In-progress">0</strong></button><div class="video-list workflow-list" id="list-In-progress"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="Scheduled"><span><i class="workflow-dot scheduled-dot"></i> Scheduled <small>Ready to publish</small></span><strong id="count-Scheduled">0</strong></button><div class="video-list workflow-list" id="list-Scheduled"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="Uploaded"><span><i class="workflow-dot uploaded-dot"></i> Uploaded <small>Published</small></span><strong id="count-Uploaded">0</strong></button><div class="video-list workflow-list" id="list-Uploaded"></div></div>
   </section>
 
 </main>
@@ -236,16 +223,20 @@ import {
   };
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
   const examples = () => [
-    {id:"example-1",topic:"ఎండను చూడగానే తుమ్ము ఎందుకు వస్తుంది?",length:"Short",stage:2,status:"Not yet",date:"",createdAt:Date.now()-2000,example:true},
-    {id:"example-2",topic:"Why do airplane windows have tiny holes?",length:"Short",stage:4,status:"Scheduled",date:"2026-11-12",createdAt:Date.now()-1000,example:true},
-    {id:"example-3",topic:"Japan car sticker — Koreisha mark",length:"Long",stage:6,status:"Uploaded",date:"2026-11-06",createdAt:Date.now(),example:true}
+    {id:"example-1",topic:"ఎండను చూడగానే తుమ్ము ఎందుకు వస్తుంది?",length:"Short",stage:0,status:"Topic",date:"",createdAt:Date.now()-2000,example:true},
+    {id:"example-2",topic:"Why do airplane windows have tiny holes?",length:"Short",stage:5,status:"In progress",date:"2026-11-12",createdAt:Date.now()-1000,example:true},
+    {id:"example-3",topic:"Japan car sticker — Koreisha mark",length:"Long",stage:7,status:"Uploaded",date:"2026-11-06",createdAt:Date.now(),example:true}
   ];
   function validVideo(v) {
     return v && typeof v.topic==="string" && ["Long","Short"].includes(v.length) &&
       Number.isInteger(v.stage) && v.stage>=0 && v.stage<8 &&
-      ["Not yet","Scheduled","Uploaded"].includes(v.status) &&
+      ["Topic","In progress","Not yet","Scheduled","Uploaded"].includes(v.status) &&
       typeof v.date==="string" && typeof v.id==="string" &&
       v.id.length > 0 && !v.id.includes("/");
+  }
+  function normalizeStatus(v) {
+    if (v.status === "Not yet") v.status = Number(v.stage) === 0 ? "Topic" : "In progress";
+    return v;
   }
   function loadLocal() {
     try {
@@ -253,7 +244,7 @@ import {
       if (raw === null) { videos = examples(); localStorage.setItem(KEY,JSON.stringify(videos)); }
       else {
         const parsed = JSON.parse(raw);
-        videos = Array.isArray(parsed) ? parsed.filter(validVideo).map(v=>({...v,example:!!v.example})) : examples();
+        videos = Array.isArray(parsed) ? parsed.filter(validVideo).map(v=>normalizeStatus({...v,example:!!v.example})) : examples();
       }
     } catch { videos = examples(); }
   }
@@ -262,7 +253,7 @@ import {
     return STAGES.map((s,i)=>`<option value="${i}" ${i===selected?"selected":""}>${s}</option>`).join("");
   }
   function statusOptions(selected) {
-    return ["Not yet","Scheduled","Uploaded"].map(s=>`<option ${s===selected?"selected":""}>${s}</option>`).join("");
+    return ["Topic","In progress","Scheduled","Uploaded"].map(s=>`<option ${s===selected?"selected":""}>${s}</option>`).join("");
   }
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   function setAccount(title, state, tone="") {
@@ -271,72 +262,43 @@ import {
     $("#account-state").className = `account-state ${tone}`;
   }
   function render() {
-    const inProgress = videos.filter(v=>v.status==="Not yet").length;
-    const scheduled = videos.filter(v=>v.status==="Scheduled").length;
-    const uploaded = videos.filter(v=>v.status==="Uploaded").length;
-    $("#summary").textContent = `${inProgress} in progress · ${scheduled} scheduled · ${uploaded} uploaded`;
+    const buckets = ["Topic","In progress","Scheduled","Uploaded"];
+    const counts = Object.fromEntries(buckets.map(b=>[b,videos.filter(v=>v.status===b).length]));
+    $("#summary").textContent = `${counts.Topic} topics · ${counts["In progress"]} in progress · ${counts.Scheduled} scheduled · ${counts.Uploaded} uploaded`;
     const query = $("#search").value.trim().toLocaleLowerCase();
-    const stageFilter = $("#stage-filter").value;
-    const statusFilter = $("#status-filter").value;
     const sortOrder = $("#sort-order").value;
-    const visible = videos.filter(v=>(filter==="All"||v.length===filter)
-      && (stageFilter==="All"||String(v.stage)===stageFilter)
-      && (statusFilter==="All"||v.status===statusFilter)
-      && (!query||v.topic.toLocaleLowerCase().includes(query)||String(v.notes||"").toLocaleLowerCase().includes(query)))
-      .sort((a,b)=>sortOrder==="oldest"?(a.createdAt||0)-(b.createdAt||0)
-        :sortOrder==="date"?(a.date||"9999").localeCompare(b.date||"9999")
-        :(a.status==="Uploaded")-(b.status==="Uploaded") || (b.createdAt||0)-(a.createdAt||0));
-    if (!visible.length) { listEl.innerHTML='<div class="empty">No matching videos found.</div>'; return; }
-    if (viewMode==="calendar") {
-      const dated = visible.filter(v=>v.date).sort((a,b)=>a.date.localeCompare(b.date));
-      const undated = visible.filter(v=>!v.date);
-      if (!dated.length) { listEl.innerHTML='<div class="calendar-empty">No videos have an upload date yet.</div>'; return; }
-      const groups = {};
-      dated.forEach(v=>(groups[v.date] ||= []).push(v));
-      listEl.innerHTML = Object.entries(groups).map(([date,items])=>
-        `<div class="calendar-day">${esc(fmtDate(date))}</div>` + items.map(v=>
-          `<div class="calendar-item"><strong>${esc(v.topic)}</strong><small>${esc(v.length)} · ${esc(v.status)}</small></div>`).join("")
-      ).join("") + (undated.length?`<div class="calendar-day">No upload date</div>`+undated.map(v=>`<div class="calendar-item"><strong>${esc(v.topic)}</strong><small>${esc(v.length)} · ${esc(v.status)}</small></div>`).join(""):"");
-      return;
-    }
-    listEl.innerHTML = visible.map(v=>{
-      const stage=STAGES[v.stage], count=v.stage+1, isLast=v.stage===7;
-      const progress=STAGES.map((_,i)=>`<i class="${i<=v.stage?"done":""}"></i>`).join("");
-      const statusClass=v.status==="Uploaded"?"uploaded":v.status==="Scheduled"?"scheduled":"";
-      const isOverdue=v.status==="Scheduled"&&v.date&&v.date<todayISO();
-      const dateText=v.date?`· ${fmtDate(v.date)}`:"";
-      const nextLabel=isLast?"Mark uploaded":`Next: ${STAGES[v.stage+1]}`;
-      const nextDisabled=isLast&&v.status==="Uploaded";
-      return `<article class="video-card ${v.status==="Uploaded"?"uploaded":""}" data-id="${esc(v.id)}">
-        <div class="card-top"><div>
-          <div class="topic">${esc(v.topic)}</div>
-          <div class="tag-row"><span class="tag ${v.length.toLowerCase()}">${v.length}</span>${v.example?'<span class="example">Example</span>':""}</div>
-        </div></div>
-        <div class="stage-line"><strong>${esc(stage)}</strong><span>${count} of 8</span></div>
-        <div class="progress" aria-label="${count} of 8 stages complete">${progress}</div>
-        <div class="meta"><span class="status-pill ${statusClass}">${esc(v.status)}</span><span class="date-text ${isOverdue?"overdue":""}">${isOverdue?"Overdue · ":""}${dateText}</span></div>
-        <details class="details">
-          <summary>Video details & notes</summary>
-          <div class="detail-grid">
+    const visible = videos.filter(v=>!query || v.topic.toLocaleLowerCase().includes(query) || String(v.notes||"").toLocaleLowerCase().includes(query));
+    visible.sort((a,b)=>sortOrder==="oldest"?(a.createdAt||0)-(b.createdAt||0):sortOrder==="date"?(a.date||"9999").localeCompare(b.date||"9999"):(b.createdAt||0)-(a.createdAt||0));
+    buckets.forEach(bucket=>{
+      const items=visible.filter(v=>v.status===bucket);
+      const bucketId=bucket==="In progress"?"In-progress":bucket;
+      document.getElementById(`count-${bucketId}`).textContent=counts[bucket];
+      const target=document.getElementById(`list-${bucketId}`);
+      if(!items.length){target.innerHTML=`<div class="empty">${bucket==="Topic"?"Add interesting ideas above.":bucket==="In progress"?"Start a topic to see your active work here.":bucket==="Scheduled"?"Videos you schedule will appear here.":"Your published videos will appear here."}</div>`;return;}
+      target.innerHTML=items.map(v=>{
+        const stage=STAGES[Math.min(v.stage,7)], overdue=bucket==="Scheduled"&&v.date&&v.date<todayISO();
+        const progress=STAGES.map((_,i)=>`<i class="${i<=v.stage&&bucket!=="Topic"?"done":""}"></i>`).join("");
+        let actions="";
+        if(bucket==="Topic") actions='<button class="btn primary wide start-btn" type="button">Start working</button>';
+        if(bucket==="In progress") actions=`<button class="btn primary advance-btn" type="button">${v.stage>=6?"Ready to schedule":"Next: "+STAGES[Math.min(v.stage+1,7)]}</button><button class="btn secondary schedule-btn" type="button">Schedule</button>`;
+        if(bucket==="Scheduled") actions='<button class="btn primary upload-btn" type="button">Mark as uploaded</button>';
+        if(bucket==="Uploaded") actions=`<span class="status-pill uploaded wide">Uploaded ${v.date?"· "+fmtDate(v.date):""}</span>`;
+        return `<article class="video-card" data-id="${esc(v.id)}"><div class="topic">${esc(v.topic)}</div><div class="tag-row"><span class="tag ${v.length.toLowerCase()}">${v.length}</span><span class="status-pill">${bucket}</span>${v.example?'<span class="example">Example</span>':""}</div>
+          ${bucket!=="Topic"?`<div class="mini-stage">Current stage: <strong>${esc(stage)}</strong></div><div class="progress">${progress}</div>`:""}
+          ${bucket==="Scheduled"?`<div class="meta"><span class="date-text ${overdue?"overdue":""}">${overdue?"Overdue · ":""}${v.date?fmtDate(v.date):"No upload date selected"}</span></div>`:""}
+          <details class="details"><summary>Video details & notes</summary><div class="detail-grid">
             <div><label>Research notes</label><textarea class="notes-edit" placeholder="Facts, sources to verify, hook ideas…">${esc(v.notes||"")}</textarea></div>
             <div><label>Script link</label><input class="script-url-edit" type="url" placeholder="https://…" value="${esc(v.scriptUrl||"")}"></div>
             <div><label>Research link</label><input class="research-url-edit" type="url" placeholder="https://…" value="${esc(v.researchUrl||"")}"></div>
             <div><label>Footage link</label><input class="footage-url-edit" type="url" placeholder="https://…" value="${esc(v.footageUrl||"")}"></div>
-          </div>
-        </details>
-        <div class="card-actions">
-          <button class="btn primary next-btn" type="button" ${nextDisabled?"disabled":""}>${nextLabel}</button>
-          <div class="edit-grid">
-            <select class="stage-edit" aria-label="Jump to stage">${stageOptions(v.stage)}</select>
-            <select class="status-edit" aria-label="Edit status">${statusOptions(v.status)}</select>
-            <input class="date-edit" type="date" aria-label="Edit upload date" value="${esc(v.date)}">
-            <button class="btn secondary delete-btn" type="button">Delete</button>
-          </div>
-        </div>
-      </article>`;
-    }).join("");
+          </div></details>
+          <div class="workflow-actions">${actions}<button class="btn secondary delete-btn" type="button">Delete</button></div>
+          ${bucket==="In progress"?`<div class="schedule-edit"><label>Current stage</label><select class="stage-quick">${stageOptions(v.stage)}</select></div>`:""}
+          ${bucket==="Scheduled"?`<div class="schedule-edit"><input class="date-edit" type="date" aria-label="Scheduled upload date" value="${esc(v.date||"")}"><button class="btn secondary save-date-btn" type="button">Save date</button></div>`:""}
+        </article>`;
+      }).join("");
+    });
   }
-
   async function syncAll() {
     if (!currentUser || loadingCloud) return;
     if (syncBusy) { syncAgain = true; return; }
@@ -384,7 +346,7 @@ import {
         cloudIds = new Set(localCopy.map(v=>v.id));
       } else {
         // The cloud is authoritative when it already contains records.
-        videos = remote.docs.map(d=>({...d.data(),id:d.id})).filter(validVideo);
+        videos = remote.docs.map(d=>normalizeStatus({...d.data(),id:d.id})).filter(validVideo);
         cloudIds = new Set(videos.map(v=>v.id));
         saveLocal();
       }
@@ -396,7 +358,7 @@ import {
       render();
     }
     unsubscribeVideos = onSnapshot(collection(db,"users",user.uid,"videos"), snap=>{
-      const incoming = snap.docs.map(d=>({...d.data(),id:d.id})).filter(validVideo);
+      const incoming = snap.docs.map(d=>normalizeStatus({...d.data(),id:d.id})).filter(validVideo);
       const incomingIds = new Set(incoming.map(v=>v.id));
       cloudIds = incomingIds;
       const before = JSON.stringify(videos);
@@ -418,7 +380,7 @@ import {
     Object.assign(v,patch); saveLocal(); render(); syncAll();
   }
 
-  STAGES.forEach((s,i)=>{$("#stage").add(new Option(s,i));$("#stage-filter").add(new Option(s,s=== "Topic"?"0":String(i)));});
+
   document.querySelectorAll("[data-length]").forEach(btn=>btn.addEventListener("click",()=>{
     selectedLength=btn.dataset.length;
     document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b===btn)));
@@ -431,41 +393,44 @@ import {
   $("#add-form").addEventListener("submit",e=>{
     e.preventDefault();
     const topic=$("#topic").value.trim(); if(!topic)return;
-    videos.push({id:uid(),topic,length:selectedLength,stage:Number($("#stage").value),status:$("#status").value,date:$("#date").value,createdAt:Date.now(),notes:"",scriptUrl:"",researchUrl:"",footageUrl:"",example:false});
-    saveLocal(); render(); syncAll(); $("#add-form").reset(); $("#stage").value="0"; $("#status").value="Not yet";
+    videos.push({id:uid(),topic,length:selectedLength,stage:0,status:"Topic",date:"",createdAt:Date.now(),notes:"",scriptUrl:"",researchUrl:"",footageUrl:"",example:false});
+    saveLocal(); render(); syncAll(); $("#add-form").reset();
     selectedLength="Short";
     document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.length==="Short")));
     $("#topic").focus();
   });
-  ["search","stage-filter","status-filter","sort-order"].forEach(id=>$("#"+id).addEventListener(id==="search"?"input":"change",render));
-  $("#list-view").addEventListener("click",()=>{viewMode="list";$("#list-view").setAttribute("aria-pressed","true");$("#calendar-view").setAttribute("aria-pressed","false");render();});
-  $("#calendar-view").addEventListener("click",()=>{viewMode="calendar";$("#list-view").setAttribute("aria-pressed","false");$("#calendar-view").setAttribute("aria-pressed","true");render();});
+  $("#search").addEventListener("input",render);
+  $("#sort-order").addEventListener("change",render);
+  document.querySelectorAll("[data-toggle]").forEach(btn=>btn.addEventListener("click",()=>{
+    const bucketId=btn.dataset.toggle==="In progress"?"In-progress":btn.dataset.toggle;
+    const list=document.getElementById(`list-${bucketId}`), expanded=btn.getAttribute("aria-expanded")==="true";
+    btn.setAttribute("aria-expanded",String(!expanded)); list.classList.toggle("collapsed",expanded);
+  }));
   listEl.addEventListener("change",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
     const id=card.dataset.id;
-    if(e.target.matches(".stage-edit")) update(id,{stage:Number(e.target.value)});
-    if(e.target.matches(".status-edit")) update(id,{status:e.target.value});
-    if(e.target.matches(".date-edit")) update(id,{date:e.target.value});
+    if(e.target.matches(".stage-quick")) update(id,{stage:Number(e.target.value)});
     if(e.target.matches(".notes-edit")) update(id,{notes:e.target.value});
     if(e.target.matches(".script-url-edit")) update(id,{scriptUrl:e.target.value.trim()});
     if(e.target.matches(".research-url-edit")) update(id,{researchUrl:e.target.value.trim()});
     if(e.target.matches(".footage-url-edit")) update(id,{footageUrl:e.target.value.trim()});
   });
-  listEl.addEventListener("click",e=>{
+  document.addEventListener("click",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
     const id=card.dataset.id, v=videos.find(x=>x.id===id); if(!v)return;
-    if(e.target.matches(".next-btn")){
-      if(v.stage===7){update(id,{status:"Uploaded",date:v.date||todayISO()});}
-      else update(id,{stage:v.stage+1});
+    if(e.target.matches(".start-btn")) update(id,{status:"In progress",stage:1});
+    if(e.target.matches(".advance-btn")) update(id,{stage:Math.min(v.stage+1,7)});
+    if(e.target.matches(".schedule-btn")){
+      const date=prompt("Enter scheduled upload date (YYYY-MM-DD), or leave blank:",v.date||"");
+      if(date===null)return;
+      if(date&&!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert("Please use YYYY-MM-DD format.");return;}
+      update(id,{status:"Scheduled",date});
     }
+    if(e.target.matches(".upload-btn")&&confirm("Mark this video as uploaded?")) update(id,{status:"Uploaded",date:v.date||todayISO(),stage:7});
+    if(e.target.matches(".save-date-btn")) update(id,{date:card.querySelector(".date-edit").value});
     if(e.target.matches(".delete-btn")){
-      if(e.target.dataset.confirm==="yes"){
-        videos=videos.filter(x=>x.id!==id); saveLocal(); render(); syncAll();
-      } else {
-        e.target.dataset.confirm="yes"; e.target.textContent="Tap again to delete";
-        e.target.classList.add("danger");
-        setTimeout(()=>{const current=card.querySelector(".delete-btn");if(current&&current.dataset.confirm==="yes"){current.dataset.confirm="";current.textContent="Delete";current.classList.remove("danger");}},3500);
-      }
+      if(e.target.dataset.confirm==="yes"){videos=videos.filter(x=>x.id!==id);saveLocal();render();syncAll();}
+      else{e.target.dataset.confirm="yes";e.target.textContent="Tap again to delete";e.target.classList.add("danger");setTimeout(()=>{const b=card.querySelector(".delete-btn");if(b&&b.dataset.confirm==="yes"){b.dataset.confirm="";b.textContent="Delete";b.classList.remove("danger");}},3500);}
     }
   });
   async function emailAuth(action) {
