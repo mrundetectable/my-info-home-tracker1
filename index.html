@@ -184,8 +184,7 @@ import {
   onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, getDocs, onSnapshot, setDoc, deleteDoc
+  getFirestore, collection, doc, getDocs, onSnapshot, setDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 (async () => {
@@ -205,6 +204,7 @@ import {
   const listEl = $("#video-list");
   let videos = [];
   let filter = "All";
+  let viewMode = "list";
   let selectedLength = "Short";
   let auth, db, currentUser = null, cloudIds = new Set(), unsubscribeVideos = null;
   let loadingCloud = false, syncBusy = false, syncAgain = false;
@@ -455,6 +455,7 @@ import {
     button.disabled = true;
     button.textContent = "Opening Google…";
     try {
+      if (!auth) throw new Error("Firebase Authentication has not initialized. Reload the tracker and try again.");
       const result = await signInWithPopup(auth,new GoogleAuthProvider());
       await connectUser(result.user);
     } catch(err) {
@@ -476,18 +477,9 @@ import {
   render();
 
   try {
-    const app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    try {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({tabManager:persistentMultipleTabManager()})
-      });
-    } catch (cacheErr) {
-      console.warn("Persistent Firestore cache could not be enabled; using default Firestore.",cacheErr);
-      // A second initialization is not needed if Firestore was already initialized.
-      const { getFirestore } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
-      db = getFirestore(app);
-    }
+    const firebaseApp = initializeApp(firebaseConfig);
+    auth = getAuth(firebaseApp);
+    db = getFirestore(firebaseApp);
     onAuthStateChanged(auth, user=>connectUser(user));
   } catch(err) {
     console.error(err);
