@@ -19,6 +19,12 @@
     .brand-logo{width:62px;height:62px;object-fit:contain;border-radius:14px;flex:0 0 62px}
     h1{font-size:21px;line-height:1.2;letter-spacing:-.5px;margin:0 0 7px;font-weight:750}
     .summary{margin:0;color:var(--muted);font-size:14px}
+    .time-panel{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:var(--surface);display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .time-panel strong{font-size:19px}.time-panel small{display:block;color:var(--muted);font-size:12px}
+    .greeting{font-weight:700;color:var(--accent);font-size:14px}
+    .schedule-dialog{width:min(92vw,420px);border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text);padding:18px}
+    .schedule-dialog::backdrop{background:#0009}.schedule-dialog .field{margin-top:12px}
+    input[type=time]{width:100%;min-height:46px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);color:var(--text)}
     section{margin:0 0 22px}
     .section-title{font-size:15px;font-weight:700;margin:0 0 11px}
     .panel,.video-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
@@ -130,6 +136,7 @@
         <p class="summary" id="summary">0 in progress · 0 scheduled · 0 uploaded</p>
       </div>
     </div>
+    <div class="time-panel"><div><div class="greeting" id="greeting">Hello!</div><small id="ist-date">India Standard Time</small></div><div style="text-align:right"><strong id="ist-clock">--:--:--</strong><small>IST · UTC+5:30</small></div></div>
   </header>
 
   <section aria-label="Cloud account">
@@ -182,6 +189,15 @@
   </div>
 
 </main>
+<dialog id="schedule-dialog" class="schedule-dialog">
+  <form method="dialog" id="schedule-form">
+    <h2 style="margin:0 0 6px;font-size:19px">Schedule video</h2>
+    <p style="margin:0;color:var(--muted);font-size:13px">Choose the planned publish date and time (IST).</p>
+    <div class="field"><label for="schedule-date">Upload date</label><input id="schedule-date" type="date" required></div>
+    <div class="field"><label for="schedule-time">Upload time</label><input id="schedule-time" type="time" required value="09:00"></div>
+    <div class="workflow-actions"><button class="btn secondary" type="button" id="schedule-cancel">Cancel</button><button class="btn primary" id="schedule-confirm" value="confirm">Schedule</button></div>
+  </form>
+</dialog>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {
@@ -215,10 +231,21 @@ import {
   let auth, db, currentUser = null, cloudIds = new Set(), unsubscribeVideos = null;
   let loadingCloud = false, syncBusy = false, syncAgain = false;
 
-  const todayISO = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  };
+  const todayISO = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  function updateClock(){
+    const hour=Number(new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",hourCycle:"h23"}).format(new Date()));
+    $("#ist-clock").textContent=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}).format(new Date());
+    $("#ist-date").textContent=new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date());
+    $("#greeting").textContent=hour<12?"Good morning":hour<17?"Good afternoon":hour<21?"Good evening":"Good night";
+  }
+  updateClock(); setInterval(updateClock,1000);
+  const scheduledInstant = v => v.scheduledAt ? new Date(v.scheduledAt+":00+05:30").getTime() : (v.date ? new Date(v.date+"T23:59:59+05:30").getTime() : Infinity);
+  function autoPublishDue(){
+    let changed=false;
+    videos.forEach(v=>{if(v.status==="Scheduled"&&scheduledInstant(v)<=Date.now()){v.status="Uploaded";v.stage=7;v.uploadedAt=Date.now();changed=true;}});
+    if(changed){saveLocal();render();syncAll();}
+  }
+  setInterval(autoPublishDue,15000);
   const fmtDate = value => {
     if (!value) return "";
     const [y,m,d] = value.split("-").map(Number);
@@ -289,7 +316,7 @@ import {
         if(bucket==="Uploaded") actions=`<span class="status-pill uploaded wide">Uploaded ${v.date?"· "+fmtDate(v.date):""}</span>`;
         return `<article class="video-card" data-id="${esc(v.id)}"><div class="topic">${esc(v.topic)}</div><div class="tag-row"><span class="tag ${v.length.toLowerCase()}">${v.length}</span><span class="status-pill">${bucket}</span>${v.example?'<span class="example">Example</span>':""}</div>
           ${bucket!=="Topic"?`<div class="mini-stage">Current stage: <strong>${esc(stage)}</strong></div><div class="progress">${progress}</div>`:""}
-          ${bucket==="Scheduled"?`<div class="meta"><span class="date-text ${overdue?"overdue":""}">${overdue?"Overdue · ":""}${v.date?fmtDate(v.date):"No upload date selected"}</span></div>`:""}
+          ${bucket==="Scheduled"?`<div class="meta"><span class="date-text ${overdue?"overdue":""}">${overdue?"Overdue · ":""}${v.date?fmtDate(v.date)+(v.scheduledTime?" · "+v.scheduledTime+" IST":""):"No upload date selected"}</span></div>`:""}
           <details class="details"><summary>Video details & notes</summary><div class="detail-grid">
             <div><label>Research notes</label><textarea class="notes-edit" placeholder="Facts, sources to verify, hook ideas…">${esc(v.notes||"")}</textarea></div>
             <div><label>Script link</label><input class="script-url-edit" type="url" placeholder="https://…" value="${esc(v.scriptUrl||"")}"></div>
@@ -298,7 +325,7 @@ import {
           </div></details>
           <div class="workflow-actions">${actions}<button class="btn secondary delete-btn" type="button">Delete</button></div>
           ${bucket==="In progress"||bucket==="On hold"?`<div class="schedule-edit"><label>Current stage</label><select class="stage-quick">${stageOptions(v.stage)}</select></div>`:""}
-          ${bucket==="Scheduled"?`<div class="schedule-edit"><input class="date-edit" type="date" aria-label="Scheduled upload date" value="${esc(v.date||"")}"><button class="btn secondary save-date-btn" type="button">Save date</button></div>`:""}
+          ${bucket==="Scheduled"?`<div class="schedule-edit"><input class="date-edit" type="date" aria-label="Scheduled upload date" value="${esc(v.date||"")}"><input class="time-edit" type="time" aria-label="Scheduled upload time" value="${esc(v.scheduledTime||"09:00")}"><button class="btn secondary save-date-btn" type="button">Save date</button></div>`:""}
         </article>`;
       }).join("");
     });
@@ -423,6 +450,15 @@ import {
     if(e.target.matches(".research-url-edit")) update(id,{researchUrl:e.target.value.trim()});
     if(e.target.matches(".footage-url-edit")) update(id,{footageUrl:e.target.value.trim()});
   });
+  $("#schedule-cancel").addEventListener("click",()=>$("#schedule-dialog").close());
+  $("#schedule-form").addEventListener("submit",e=>{
+    e.preventDefault();
+    const date=$("#schedule-date").value,time=$("#schedule-time").value,id=$("#schedule-dialog").dataset.videoId;
+    if(!date||!time)return;
+    if(new Date(date+"T"+time+":00+05:30").getTime()<=Date.now()){alert("Choose a future date and time (IST).");return;}
+    update(id,{status:"Scheduled",date,scheduledTime:time,scheduledAt:date+"T"+time});
+    $("#schedule-dialog").close();
+  });
   document.addEventListener("click",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
     const id=card.dataset.id, v=videos.find(x=>x.id===id); if(!v)return;
@@ -431,13 +467,13 @@ import {
     if(e.target.matches(".resume-btn")) update(id,{status:"In progress"});
     if(e.target.matches(".advance-btn")) update(id,{stage:Math.min(v.stage+1,7)});
     if(e.target.matches(".schedule-btn")){
-      const date=prompt("Enter scheduled upload date (YYYY-MM-DD), or leave blank:",v.date||"");
-      if(date===null)return;
-      if(date&&!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert("Please use YYYY-MM-DD format.");return;}
-      update(id,{status:"Scheduled",date});
+      const dlg=$("#schedule-dialog");
+      $("#schedule-date").value=v.date||todayISO();
+      $("#schedule-time").value=v.scheduledTime||"09:00";
+      dlg.dataset.videoId=id; dlg.showModal();
     }
     if(e.target.matches(".upload-btn")&&confirm("Mark this video as uploaded?")) update(id,{status:"Uploaded",date:v.date||todayISO(),stage:7});
-    if(e.target.matches(".save-date-btn")) update(id,{date:card.querySelector(".date-edit").value});
+    if(e.target.matches(".save-date-btn")) {const date=card.querySelector(".date-edit").value,time=card.querySelector(".time-edit").value;if(date&&time&&new Date(date+"T"+time+":00+05:30").getTime()>Date.now())update(id,{date,scheduledTime:time,scheduledAt:date+"T"+time});else alert("Choose a future date and time (IST).");}
     if(e.target.matches(".delete-btn")){
       if(e.target.dataset.confirm==="yes"){videos=videos.filter(x=>x.id!==id);saveLocal();render();syncAll();}
       else{e.target.dataset.confirm="yes";e.target.textContent="Tap again to delete";e.target.classList.add("danger");setTimeout(()=>{const b=card.querySelector(".delete-btn");if(b&&b.dataset.confirm==="yes"){b.dataset.confirm="";b.textContent="Delete";b.classList.remove("danger");}},3500);}
