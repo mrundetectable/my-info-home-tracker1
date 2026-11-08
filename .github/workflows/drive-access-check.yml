@@ -1,0 +1,97 @@
+name: Test Google Drive Access
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-drive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check access to test Drive folder
+        env:
+          CLIENT_ID: ${{ secrets.TEST_YOUTUBE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.TEST_YOUTUBE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.TEST_DRIVE_REFRESH_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import urllib.parse
+          import urllib.request
+          import urllib.error
+
+          data = urllib.parse.urlencode({
+              "client_id": os.environ["CLIENT_ID"],
+              "client_secret": os.environ["CLIENT_SECRET"],
+              "refresh_token": os.environ["REFRESH_TOKEN"],
+              "grant_type": "refresh_token"
+          }).encode()
+
+          try:
+              req = urllib.request.Request(
+                  "https://oauth2.googleapis.com/token",
+                  data=data
+              )
+              with urllib.request.urlopen(req) as response:
+                  token = json.loads(response.read())["access_token"]
+
+              query = (
+                  "name='YouTube Test Uploads' "
+                  "and mimeType='application/vnd.google-apps.folder' "
+                  "and trashed=false"
+              )
+
+              params = urllib.parse.urlencode({
+                  "q": query,
+                  "fields": "files(id,name,mimeType)",
+                  "pageSize": 100
+              })
+
+              req = urllib.request.Request(
+                  "https://www.googleapis.com/drive/v3/files?" + params,
+                  headers={"Authorization": "Bearer " + token}
+              )
+
+              with urllib.request.urlopen(req) as response:
+                  folders = json.loads(response.read()).get("files", [])
+
+              if not folders:
+                  print("Folder not visible with the current Drive permission.")
+              else:
+                  folder = folders[0]
+                  print("Folder access successful:", folder["name"])
+
+                  query = "'" + folder["id"] + "' in parents and trashed=false"
+                  params = urllib.parse.urlencode({
+                      "q": query,
+                      "fields": "files(id,name,mimeType,size)",
+                      "pageSize": 100
+                  })
+
+                  req = urllib.request.Request(
+                      "https://www.googleapis.com/drive/v3/files?" + params,
+                      headers={"Authorization": "Bearer " + token}
+                  )
+
+                  with urllib.request.urlopen(req) as response:
+                      files = json.loads(response.read()).get("files", [])
+
+                  for file in files:
+                      print(
+                          "Found:", file["name"],
+                          "| Type:", file["mimeType"],
+                          "| Size:", file.get("size", "N/A")
+                      )
+
+          except urllib.error.HTTPError as error:
+              print("Google API returned HTTP error:", error.code)
+              print(error.read().decode()[:1000])
+              raise
+          except Exception as error:
+              print("Access check failed:", str(error))
+              raise
+          PY
