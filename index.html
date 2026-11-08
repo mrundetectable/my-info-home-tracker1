@@ -406,7 +406,7 @@ import {
     const list=document.getElementById(`list-${bucketId}`), expanded=btn.getAttribute("aria-expanded")==="true";
     btn.setAttribute("aria-expanded",String(!expanded)); list.classList.toggle("collapsed",expanded);
   }));
-  listEl.addEventListener("change",e=>{
+  document.addEventListener("change",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
     const id=card.dataset.id;
     if(e.target.matches(".stage-quick")) update(id,{stage:Number(e.target.value)});
