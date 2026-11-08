@@ -121,6 +121,15 @@
     .auth-note{font-size:12px;color:var(--muted);margin:0}
     .sync-good{color:var(--accent)}
     .sync-warn{color:var(--amber)}
+    .mini-calendar{margin-top:12px;padding:12px}
+    .calendar-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .calendar-top strong{font-size:14px}
+    .calendar-nav{width:34px;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--text);font-size:22px;line-height:1;cursor:pointer}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+    .calendar-weekdays{font-size:10px;color:var(--muted);font-weight:700;margin-bottom:5px}
+    .calendar-day{height:30px;display:grid;place-items:center;border-radius:8px;font-size:12px;color:var(--text)}
+    .calendar-day.today{background:var(--accent);color:#102016;font-weight:800}
+    .calendar-day.other{opacity:.28}
     .hidden{display:none!important}
     footer{font-size:12px;color:var(--muted);text-align:center;padding:8px 0}
     @media(min-width:500px){.wrap{padding-left:20px;padding-right:20px}.panel{padding:17px}.video-card{padding:16px}}
@@ -137,6 +146,11 @@
       </div>
     </div>
     <div class="time-panel"><div><div class="greeting" id="greeting">Hello!</div><small id="ist-date">India Standard Time</small></div><div style="text-align:right"><strong id="ist-clock">--:--:--</strong><small>IST · UTC+5:30</small></div></div>
+    <section class="mini-calendar panel" aria-label="Monthly calendar">
+      <div class="calendar-top"><button type="button" class="calendar-nav" id="calendar-prev" aria-label="Previous month">‹</button><strong id="calendar-month">November 2026</strong><button type="button" class="calendar-nav" id="calendar-next" aria-label="Next month">›</button></div>
+      <div class="calendar-grid calendar-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+      <div class="calendar-grid" id="calendar-days"></div>
+    </section>
   </header>
 
   <section aria-label="Cloud account">
@@ -239,6 +253,32 @@ import {
     $("#greeting").textContent=hour<12?"Good morning":hour<17?"Good afternoon":hour<21?"Good evening":"Good night";
   }
   updateClock(); setInterval(updateClock,1000);
+  let calendarOffset=0;
+  function renderMiniCalendar(){
+    const now=new Date();
+    const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(now);
+    const get=k=>Number(parts.find(p=>p.type===k).value);
+    const today={y:get("year"),m:get("month")-1,d:get("day")};
+    const first=new Date(Date.UTC(today.y,today.m+calendarOffset,1));
+    const year=first.getUTCFullYear(), month=first.getUTCMonth();
+    $("#calendar-month").textContent=new Intl.DateTimeFormat("en-IN",{month:"long",year:"numeric",timeZone:"UTC"}).format(first);
+    const start=(first.getUTCDay()+6)%7;
+    const daysInMonth=new Date(Date.UTC(year,month+1,0)).getUTCDate();
+    const prevDays=new Date(Date.UTC(year,month,0)).getUTCDate();
+    const cells=Math.ceil((start+daysInMonth)/7)*7;
+    let html="";
+    for(let i=0;i<cells;i++){
+      let day=i-start+1, other=false;
+      if(day<1){day=prevDays+day;other=true;}
+      else if(day>daysInMonth){day-=daysInMonth;other=true;}
+      const isToday=!other&&calendarOffset===0&&day===today.d;
+      html+=`<span class="calendar-day${other?" other":""}${isToday?" today":""}"${isToday?' aria-current="date"':""}>${day}</span>`;
+    }
+    $("#calendar-days").innerHTML=html;
+  }
+  $("#calendar-prev").addEventListener("click",()=>{calendarOffset--;renderMiniCalendar();});
+  $("#calendar-next").addEventListener("click",()=>{calendarOffset++;renderMiniCalendar();});
+  renderMiniCalendar();
   const scheduledInstant = v => v.scheduledAt ? new Date(v.scheduledAt+":00+05:30").getTime() : (v.date ? new Date(v.date+"T23:59:59+05:30").getTime() : Infinity);
   function autoPublishDue(){
     let changed=false;
@@ -439,7 +479,12 @@ import {
   document.querySelectorAll("[data-toggle]").forEach(btn=>btn.addEventListener("click",()=>{
     const bucketId=btn.dataset.toggle==="In progress"?"In-progress":btn.dataset.toggle==="On hold"?"On-hold":btn.dataset.toggle;
     const list=document.getElementById(`list-${bucketId}`), expanded=btn.getAttribute("aria-expanded")==="true";
-    btn.setAttribute("aria-expanded",String(!expanded)); list.classList.toggle("collapsed",expanded);
+    document.querySelectorAll("[data-toggle]").forEach(other=>{
+      const otherId=other.dataset.toggle==="In progress"?"In-progress":other.dataset.toggle==="On hold"?"On-hold":other.dataset.toggle;
+      other.setAttribute("aria-expanded","false");
+      document.getElementById(`list-${otherId}`).classList.add("collapsed");
+    });
+    if(!expanded){btn.setAttribute("aria-expanded","true");list.classList.remove("collapsed");}
   }));
   document.addEventListener("change",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
