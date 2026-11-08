@@ -168,7 +168,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+  getAuth, GoogleAuthProvider, signInWithPopup,
   onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {
@@ -419,8 +419,21 @@ import {
   });
 
   $("#signin-btn").addEventListener("click",async()=>{
-    try { await signInWithRedirect(auth,new GoogleAuthProvider()); }
-    catch(err){ console.error(err); alert(`Google sign-in could not start: ${err.message}`); }
+    const button = $("#signin-btn");
+    button.disabled = true;
+    button.textContent = "Opening Google…";
+    try {
+      const result = await signInWithPopup(auth,new GoogleAuthProvider());
+      await connectUser(result.user);
+    } catch(err) {
+      console.error("Google sign-in error:", err);
+      const message = `${err.code || "unknown"}: ${err.message || "Please try again."}`;
+      setAccount("Google sign-in failed", message, "sync-warn");
+      alert(`Google sign-in failed.\\n\\n${message}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Sign in with Google";
+    }
   });
   $("#signout-btn").addEventListener("click",async()=>{
     if(!confirm("Sign out of cloud sync on this device? Your cloud records will remain in Firebase."))return;
@@ -443,10 +456,6 @@ import {
       const { getFirestore } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
       db = getFirestore(app);
     }
-    getRedirectResult(auth).catch(err=>{
-      console.error(err);
-      setAccount("Google sign-in needs attention", "Please try signing in again. If this repeats, check Firebase Authorized domains.", "sync-warn");
-    });
     onAuthStateChanged(auth, user=>connectUser(user));
   } catch(err) {
     console.error(err);
