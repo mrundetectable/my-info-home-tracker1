@@ -45,7 +45,7 @@
     .workflow-heading small{font-size:11px;font-weight:500;color:var(--muted)}
     .workflow-heading strong{font-size:18px;color:var(--accent);min-width:28px;text-align:right}
     .workflow-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--muted)}
-    .topic-dot{background:#8a9290}.progress-dot{background:#3b82c4}.scheduled-dot{background:var(--amber)}.uploaded-dot{background:var(--accent)}
+    .topic-dot{background:#8a9290}.progress-dot{background:#3b82c4}.hold-dot{background:#a16bc5}.scheduled-dot{background:var(--amber)}.uploaded-dot{background:var(--accent)}
     .workflow-list{padding-top:10px}.workflow-list.collapsed{display:none}
     .workflow-list .empty{padding:15px}
     .workflow-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
@@ -172,10 +172,11 @@
       <input id="search" type="text" placeholder="Search topics…" aria-label="Search topics">
       <select id="sort-order" aria-label="Sort topics"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="date">Upload date</option></select>
     </div>
-    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="Topic"><span><i class="workflow-dot topic-dot"></i> Topics <small>Not started</small></span><strong id="count-Topic">0</strong></button><div class="video-list workflow-list" id="list-Topic"></div></div>
-    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="In progress"><span><i class="workflow-dot progress-dot"></i> Started working <small>In progress</small></span><strong id="count-In-progress">0</strong></button><div class="video-list workflow-list" id="list-In-progress"></div></div>
-    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="Scheduled"><span><i class="workflow-dot scheduled-dot"></i> Scheduled <small>Ready to publish</small></span><strong id="count-Scheduled">0</strong></button><div class="video-list workflow-list" id="list-Scheduled"></div></div>
-    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="true" data-toggle="Uploaded"><span><i class="workflow-dot uploaded-dot"></i> Uploaded <small>Published</small></span><strong id="count-Uploaded">0</strong></button><div class="video-list workflow-list" id="list-Uploaded"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="false" data-toggle="Topic"><span><i class="workflow-dot topic-dot"></i> Topics <small>Not started</small></span><strong id="count-Topic">0</strong></button><div class="video-list workflow-list collapsed" id="list-Topic"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="false" data-toggle="In progress"><span><i class="workflow-dot progress-dot"></i> Started working <small>In progress</small></span><strong id="count-In-progress">0</strong></button><div class="video-list workflow-list collapsed" id="list-In-progress"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="false" data-toggle="On hold"><span><i class="workflow-dot hold-dot"></i> On hold <small>Paused midway</small></span><strong id="count-On-hold">0</strong></button><div class="video-list workflow-list collapsed" id="list-On-hold"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="false" data-toggle="Scheduled"><span><i class="workflow-dot scheduled-dot"></i> Scheduled <small>Ready to publish</small></span><strong id="count-Scheduled">0</strong></button><div class="video-list workflow-list collapsed" id="list-Scheduled"></div></div>
+    <div class="workflow-section"><button class="workflow-heading" type="button" aria-expanded="false" data-toggle="Uploaded"><span><i class="workflow-dot uploaded-dot"></i> Uploaded <small>Published</small></span><strong id="count-Uploaded">0</strong></button><div class="video-list workflow-list collapsed" id="list-Uploaded"></div></div>
   </section>
 
 </main>
@@ -230,7 +231,7 @@ import {
   function validVideo(v) {
     return v && typeof v.topic==="string" && ["Long","Short"].includes(v.length) &&
       Number.isInteger(v.stage) && v.stage>=0 && v.stage<8 &&
-      ["Topic","In progress","Not yet","Scheduled","Uploaded"].includes(v.status) &&
+      ["Topic","In progress","On hold","Not yet","Scheduled","Uploaded"].includes(v.status) &&
       typeof v.date==="string" && typeof v.id==="string" &&
       v.id.length > 0 && !v.id.includes("/");
   }
@@ -262,25 +263,26 @@ import {
     $("#account-state").className = `account-state ${tone}`;
   }
   function render() {
-    const buckets = ["Topic","In progress","Scheduled","Uploaded"];
+    const buckets = ["Topic","In progress","On hold","Scheduled","Uploaded"];
     const counts = Object.fromEntries(buckets.map(b=>[b,videos.filter(v=>v.status===b).length]));
-    $("#summary").textContent = `${counts.Topic} topics · ${counts["In progress"]} in progress · ${counts.Scheduled} scheduled · ${counts.Uploaded} uploaded`;
+    $("#summary").textContent = `${counts.Topic} topics · ${counts["In progress"]} in progress · ${counts["On hold"]} on hold · ${counts.Scheduled} scheduled · ${counts.Uploaded} uploaded`;
     const query = $("#search").value.trim().toLocaleLowerCase();
     const sortOrder = $("#sort-order").value;
     const visible = videos.filter(v=>!query || v.topic.toLocaleLowerCase().includes(query) || String(v.notes||"").toLocaleLowerCase().includes(query));
     visible.sort((a,b)=>sortOrder==="oldest"?(a.createdAt||0)-(b.createdAt||0):sortOrder==="date"?(a.date||"9999").localeCompare(b.date||"9999"):(b.createdAt||0)-(a.createdAt||0));
     buckets.forEach(bucket=>{
       const items=visible.filter(v=>v.status===bucket);
-      const bucketId=bucket==="In progress"?"In-progress":bucket;
+      const bucketId=bucket==="In progress"?"In-progress":bucket==="On hold"?"On-hold":bucket;
       document.getElementById(`count-${bucketId}`).textContent=counts[bucket];
       const target=document.getElementById(`list-${bucketId}`);
-      if(!items.length){target.innerHTML=`<div class="empty">${bucket==="Topic"?"Add interesting ideas above.":bucket==="In progress"?"Start a topic to see your active work here.":bucket==="Scheduled"?"Videos you schedule will appear here.":"Your published videos will appear here."}</div>`;return;}
+      if(!items.length){target.innerHTML=`<div class="empty">${bucket==="Topic"?"Add interesting ideas above.":bucket==="In progress"?"Start a topic to see your active work here.":bucket==="On hold"?"Paused topics will appear here. Resume them whenever you are ready.":bucket==="Scheduled"?"Videos you schedule will appear here.":"Your published videos will appear here."}</div>`;return;}
       target.innerHTML=items.map(v=>{
         const stage=STAGES[Math.min(v.stage,7)], overdue=bucket==="Scheduled"&&v.date&&v.date<todayISO();
         const progress=STAGES.map((_,i)=>`<i class="${i<=v.stage&&bucket!=="Topic"?"done":""}"></i>`).join("");
         let actions="";
         if(bucket==="Topic") actions='<button class="btn primary wide start-btn" type="button">Start working</button>';
-        if(bucket==="In progress") actions=`<button class="btn primary advance-btn" type="button">${v.stage>=6?"Ready to schedule":"Next: "+STAGES[Math.min(v.stage+1,7)]}</button><button class="btn secondary schedule-btn" type="button">Schedule</button>`;
+        if(bucket==="In progress") actions=`<button class="btn primary advance-btn" type="button">${v.stage>=6?"Ready to schedule":"Next: "+STAGES[Math.min(v.stage+1,7)]}</button><button class="btn secondary schedule-btn" type="button">Schedule</button><button class="btn secondary wide hold-btn" type="button">Put on hold</button>`;
+        if(bucket==="On hold") actions=`<button class="btn primary wide resume-btn" type="button">Resume working</button>`;
         if(bucket==="Scheduled") actions='<button class="btn primary upload-btn" type="button">Mark as uploaded</button>';
         if(bucket==="Uploaded") actions=`<span class="status-pill uploaded wide">Uploaded ${v.date?"· "+fmtDate(v.date):""}</span>`;
         return `<article class="video-card" data-id="${esc(v.id)}"><div class="topic">${esc(v.topic)}</div><div class="tag-row"><span class="tag ${v.length.toLowerCase()}">${v.length}</span><span class="status-pill">${bucket}</span>${v.example?'<span class="example">Example</span>':""}</div>
@@ -293,7 +295,7 @@ import {
             <div><label>Footage link</label><input class="footage-url-edit" type="url" placeholder="https://…" value="${esc(v.footageUrl||"")}"></div>
           </div></details>
           <div class="workflow-actions">${actions}<button class="btn secondary delete-btn" type="button">Delete</button></div>
-          ${bucket==="In progress"?`<div class="schedule-edit"><label>Current stage</label><select class="stage-quick">${stageOptions(v.stage)}</select></div>`:""}
+          ${bucket==="In progress"||bucket==="On hold"?`<div class="schedule-edit"><label>Current stage</label><select class="stage-quick">${stageOptions(v.stage)}</select></div>`:""}
           ${bucket==="Scheduled"?`<div class="schedule-edit"><input class="date-edit" type="date" aria-label="Scheduled upload date" value="${esc(v.date||"")}"><button class="btn secondary save-date-btn" type="button">Save date</button></div>`:""}
         </article>`;
       }).join("");
@@ -402,7 +404,7 @@ import {
   $("#search").addEventListener("input",render);
   $("#sort-order").addEventListener("change",render);
   document.querySelectorAll("[data-toggle]").forEach(btn=>btn.addEventListener("click",()=>{
-    const bucketId=btn.dataset.toggle==="In progress"?"In-progress":btn.dataset.toggle;
+    const bucketId=btn.dataset.toggle==="In progress"?"In-progress":btn.dataset.toggle==="On hold"?"On-hold":btn.dataset.toggle;
     const list=document.getElementById(`list-${bucketId}`), expanded=btn.getAttribute("aria-expanded")==="true";
     btn.setAttribute("aria-expanded",String(!expanded)); list.classList.toggle("collapsed",expanded);
   }));
@@ -419,6 +421,8 @@ import {
     const card=e.target.closest("[data-id]"); if(!card)return;
     const id=card.dataset.id, v=videos.find(x=>x.id===id); if(!v)return;
     if(e.target.matches(".start-btn")) update(id,{status:"In progress",stage:1});
+    if(e.target.matches(".hold-btn")) update(id,{status:"On hold"});
+    if(e.target.matches(".resume-btn")) update(id,{status:"In progress"});
     if(e.target.matches(".advance-btn")) update(id,{stage:Math.min(v.stage+1,7)});
     if(e.target.matches(".schedule-btn")){
       const date=prompt("Enter scheduled upload date (YYYY-MM-DD), or leave blank:",v.date||"");
