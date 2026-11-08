@@ -71,6 +71,14 @@
     .empty{padding:23px 15px;text-align:center;color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:14px}
     .backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     .backup-note{font-size:12px;color:var(--muted);margin:10px 0 0}
+    .account-panel{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .account-copy{min-width:0;flex:1}
+    .account-title{font-weight:750;font-size:14px;margin:0 0 3px}
+    .account-state{font-size:12px;color:var(--muted);margin:0;overflow-wrap:anywhere}
+    .account-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .account-actions .btn{min-height:44px}
+    .sync-good{color:var(--accent)}
+    .sync-warn{color:var(--amber)}
     .hidden{display:none!important}
     footer{font-size:12px;color:var(--muted);text-align:center;padding:8px 0}
     @media(min-width:500px){.wrap{padding-left:20px;padding-right:20px}.panel{padding:17px}.video-card{padding:16px}}
@@ -87,6 +95,19 @@
       </div>
     </div>
   </header>
+
+  <section aria-label="Cloud account">
+    <div class="panel account-panel">
+      <div class="account-copy">
+        <p class="account-title" id="account-title">Cloud sync not connected</p>
+        <p class="account-state" id="account-state">Sign in with Google to sync your videos across devices.</p>
+      </div>
+      <div class="account-actions">
+        <button class="btn primary" id="signin-btn" type="button">Sign in with Google</button>
+        <button class="btn secondary hidden" id="signout-btn" type="button">Sign out</button>
+      </div>
+    </div>
+  </section>
 
   <section aria-labelledby="add-title">
     <h2 class="section-title" id="add-title">Add a video</h2>
@@ -139,13 +160,33 @@
         <button class="btn secondary" id="import-btn" type="button">Import data</button>
         <input class="hidden" id="import-file" type="file" accept="application/json,.json">
       </div>
-      <p class="backup-note">Your videos stay on this device. Export a backup before clearing browser data or changing phones.</p>
+      <p class="backup-note">Export a JSON backup occasionally. When signed in, changes sync to your private Firebase account; offline changes sync when internet returns.</p>
     </div>
   </section>
-  <footer>Stored locally on this device · Works offline after first visit</footer>
+  <footer>Private Google account sync · Offline-ready after first visit</footer>
 </main>
-<script>
-(() => {
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+  onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, getDocs, onSnapshot, setDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+(async () => {
+  const firebaseConfig = {
+    apiKey: "AIzaSyB0g5q7CNdzodQVfQrSKP--A93OM5ej7gk",
+    authDomain: "my-info-home-tracker1.firebaseapp.com",
+    projectId: "my-info-home-tracker1",
+    storageBucket: "my-info-home-tracker1.firebasestorage.app",
+    messagingSenderId: "181261546355",
+    appId: "1:181261546355:web:e4aa36873d0ecaa9d74b06",
+    measurementId: "G-EKHFS68338"
+  };
+
   const STAGES = ["Topic","5-Rule","Scripting","Voice over","Footage","Edit","SEO","Upload"];
   const KEY = "channel-tracker-v1";
   const $ = s => document.querySelector(s);
@@ -153,6 +194,8 @@
   let videos = [];
   let filter = "All";
   let selectedLength = "Short";
+  let auth, db, currentUser = null, cloudIds = new Set(), unsubscribeVideos = null;
+  let loadingCloud = false, syncBusy = false, syncAgain = false;
 
   const todayISO = () => {
     const d = new Date();
@@ -169,23 +212,24 @@
     {id:"example-2",topic:"Why do airplane windows have tiny holes?",length:"Short",stage:4,status:"Scheduled",date:"2026-11-12",createdAt:Date.now()-1000,example:true},
     {id:"example-3",topic:"Japan car sticker — Koreisha mark",length:"Long",stage:6,status:"Uploaded",date:"2026-11-06",createdAt:Date.now(),example:true}
   ];
-  function load() {
+  function validVideo(v) {
+    return v && typeof v.topic==="string" && ["Long","Short"].includes(v.length) &&
+      Number.isInteger(v.stage) && v.stage>=0 && v.stage<8 &&
+      ["Not yet","Scheduled","Uploaded"].includes(v.status) &&
+      typeof v.date==="string" && typeof v.id==="string" &&
+      v.id.length > 0 && !v.id.includes("/");
+  }
+  function loadLocal() {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw === null) { videos = examples(); save(); }
+      if (raw === null) { videos = examples(); localStorage.setItem(KEY,JSON.stringify(videos)); }
       else {
         const parsed = JSON.parse(raw);
         videos = Array.isArray(parsed) ? parsed.filter(validVideo).map(v=>({...v,example:!!v.example})) : examples();
       }
     } catch { videos = examples(); }
   }
-  function validVideo(v) {
-    return v && typeof v.topic==="string" && ["Long","Short"].includes(v.length) &&
-      Number.isInteger(v.stage) && v.stage>=0 && v.stage<8 &&
-      ["Not yet","Scheduled","Uploaded"].includes(v.status) &&
-      (typeof v.date==="string") && typeof v.id==="string";
-  }
-  function save(){ localStorage.setItem(KEY,JSON.stringify(videos)); }
+  function saveLocal(){ localStorage.setItem(KEY,JSON.stringify(videos)); }
   function stageOptions(selected) {
     return STAGES.map((s,i)=>`<option value="${i}" ${i===selected?"selected":""}>${s}</option>`).join("");
   }
@@ -193,6 +237,11 @@
     return ["Not yet","Scheduled","Uploaded"].map(s=>`<option ${s===selected?"selected":""}>${s}</option>`).join("");
   }
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function setAccount(title, state, tone="") {
+    $("#account-title").textContent = title;
+    $("#account-state").textContent = state;
+    $("#account-state").className = `account-state ${tone}`;
+  }
   function render() {
     const inProgress = videos.filter(v=>v.status==="Not yet").length;
     const scheduled = videos.filter(v=>v.status==="Scheduled").length;
@@ -228,9 +277,84 @@
       </article>`;
     }).join("");
   }
+
+  async function syncAll() {
+    if (!currentUser || loadingCloud) return;
+    if (syncBusy) { syncAgain = true; return; }
+    syncBusy = true;
+    try {
+      const col = collection(db, "users", currentUser.uid, "videos");
+      const localIds = new Set(videos.map(v=>v.id));
+      const writes = videos.map(v=>setDoc(doc(col,v.id), v));
+      const deletes = [...cloudIds].filter(id=>!localIds.has(id)).map(id=>deleteDoc(doc(col,id)));
+      await Promise.all([...writes,...deletes]);
+      cloudIds = localIds;
+      setAccount(`Signed in as ${currentUser.email || "Google account"}`, "All changes synced to your Firebase account.", "sync-good");
+    } catch (err) {
+      console.error(err);
+      setAccount(`Signed in as ${currentUser?.email || "Google account"}`, "Sync is waiting for a connection. Keep the app installed; pending changes will retry.", "sync-warn");
+    } finally {
+      syncBusy = false;
+      if (syncAgain) { syncAgain = false; syncAll(); }
+    }
+  }
+
+  async function connectUser(user) {
+    currentUser = user;
+    if (unsubscribeVideos) { unsubscribeVideos(); unsubscribeVideos = null; }
+    if (!user) {
+      cloudIds = new Set();
+      $("#signin-btn").classList.remove("hidden");
+      $("#signout-btn").classList.add("hidden");
+      setAccount("Cloud sync not connected", "Your current device data remains local. Sign in with Google to sync it.");
+      return;
+    }
+    $("#signin-btn").classList.add("hidden");
+    $("#signout-btn").classList.remove("hidden");
+    setAccount("Connecting your private tracker…", "Checking your cloud records.");
+    loadingCloud = true;
+    try {
+      const col = collection(db, "users", user.uid, "videos");
+      const remote = await getDocs(col);
+      if (remote.empty) {
+        // First sign-in: migrate the current device's records to this account.
+        const localCopy = [...videos];
+        await Promise.all(localCopy.map(v=>setDoc(doc(col,v.id),v)));
+        cloudIds = new Set(localCopy.map(v=>v.id));
+      } else {
+        // The cloud is authoritative when it already contains records.
+        videos = remote.docs.map(d=>({...d.data(),id:d.id})).filter(validVideo);
+        cloudIds = new Set(videos.map(v=>v.id));
+        saveLocal();
+      }
+    } catch (err) {
+      console.error(err);
+      setAccount("Signed in — offline mode", "Cloud records may take a moment to load when your connection returns.", "sync-warn");
+    } finally {
+      loadingCloud = false;
+      render();
+    }
+    unsubscribeVideos = onSnapshot(collection(db,"users",user.uid,"videos"), snap=>{
+      const incoming = snap.docs.map(d=>({...d.data(),id:d.id})).filter(validVideo);
+      const incomingIds = new Set(incoming.map(v=>v.id));
+      cloudIds = incomingIds;
+      const before = JSON.stringify(videos);
+      const after = JSON.stringify(incoming);
+      if (before !== after) {
+        videos = incoming;
+        saveLocal();
+        render();
+      }
+      setAccount(`Signed in as ${user.email || "Google account"}`, snap.metadata.hasPendingWrites ? "Saving offline changes…" : "Cloud sync is active.", "sync-good");
+    }, err=>{
+      console.error(err);
+      setAccount("Cloud connection issue", "Your local copy is still available. Check your connection and sign in again.", "sync-warn");
+    });
+  }
+
   function update(id, patch) {
     const v=videos.find(x=>x.id===id); if(!v)return;
-    Object.assign(v,patch); save(); render();
+    Object.assign(v,patch); saveLocal(); render(); syncAll();
   }
 
   STAGES.forEach((s,i)=>$("#stage").add(new Option(s,i)));
@@ -247,10 +371,10 @@
     e.preventDefault();
     const topic=$("#topic").value.trim(); if(!topic)return;
     videos.push({id:uid(),topic,length:selectedLength,stage:Number($("#stage").value),status:$("#status").value,date:$("#date").value,createdAt:Date.now(),example:false});
-    save(); $("#add-form").reset(); $("#stage").value="0"; $("#status").value="Not yet";
+    saveLocal(); render(); syncAll(); $("#add-form").reset(); $("#stage").value="0"; $("#status").value="Not yet";
     selectedLength="Short";
     document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.length==="Short")));
-    render(); $("#topic").focus();
+    $("#topic").focus();
   });
   listEl.addEventListener("change",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
@@ -268,7 +392,7 @@
     }
     if(e.target.matches(".delete-btn")){
       if(e.target.dataset.confirm==="yes"){
-        videos=videos.filter(x=>x.id!==id); save(); render();
+        videos=videos.filter(x=>x.id!==id); saveLocal(); render(); syncAll();
       } else {
         e.target.dataset.confirm="yes"; e.target.textContent="Tap again to delete";
         e.target.classList.add("danger");
@@ -277,9 +401,9 @@
     }
   });
   $("#export-btn").addEventListener("click",()=>{
-    const blob=new Blob([JSON.stringify({app:"Channel Tracker",version:1,exportedAt:new Date().toISOString(),videos},null,2)],{type:"application/json"});
+    const blob=new Blob([JSON.stringify({app:"My Info Home tracker",version:1,exportedAt:new Date().toISOString(),videos},null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob), a=document.createElement("a");
-    a.href=url;a.download=`channel-tracker-backup-${todayISO()}.json`;a.click();URL.revokeObjectURL(url);
+    a.href=url;a.download=`my-info-home-tracker-backup-${todayISO()}.json`;a.click();URL.revokeObjectURL(url);
   });
   $("#import-btn").addEventListener("click",()=>$("#import-file").click());
   $("#import-file").addEventListener("change",async e=>{
@@ -288,12 +412,47 @@
       const parsed=JSON.parse(await file.text());
       const incoming=Array.isArray(parsed)?parsed:parsed.videos;
       if(!Array.isArray(incoming)||!incoming.every(validVideo))throw new Error("Invalid backup");
-      if(!confirm(`Import ${incoming.length} videos? This replaces the videos currently on this device.`))return;
-      videos=incoming.map(v=>({...v,example:!!v.example}));save();render();
-    }catch{alert("Could not import this file. Please choose a valid Channel Tracker JSON backup.");}
+      if(!confirm(`Import ${incoming.length} videos? This replaces the videos currently on this device and in your signed-in cloud account.`))return;
+      videos=incoming.map(v=>({...v,example:!!v.example})); saveLocal(); render(); await syncAll();
+    }catch(err){console.error(err);alert("Could not import this file. Please choose a valid tracker JSON backup.");}
     finally{e.target.value="";}
   });
-  load(); render();
+
+  $("#signin-btn").addEventListener("click",async()=>{
+    try { await signInWithRedirect(auth,new GoogleAuthProvider()); }
+    catch(err){ console.error(err); alert(`Google sign-in could not start: ${err.message}`); }
+  });
+  $("#signout-btn").addEventListener("click",async()=>{
+    if(!confirm("Sign out of cloud sync on this device? Your cloud records will remain in Firebase."))return;
+    try { await signOut(auth); } catch(err){ alert(`Could not sign out: ${err.message}`); }
+  });
+
+  loadLocal();
+  render();
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({tabManager:persistentMultipleTabManager()})
+      });
+    } catch (cacheErr) {
+      console.warn("Persistent Firestore cache could not be enabled; using default Firestore.",cacheErr);
+      // A second initialization is not needed if Firestore was already initialized.
+      const { getFirestore } = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js");
+      db = getFirestore(app);
+    }
+    getRedirectResult(auth).catch(err=>{
+      console.error(err);
+      setAccount("Google sign-in needs attention", "Please try signing in again. If this repeats, check Firebase Authorized domains.", "sync-warn");
+    });
+    onAuthStateChanged(auth, user=>connectUser(user));
+  } catch(err) {
+    console.error(err);
+    setAccount("Firebase setup issue", "Your local tracker still works. Check the Firebase configuration and internet connection.", "sync-warn");
+  }
+
   if("serviceWorker" in navigator && (location.protocol==="https:"||location.hostname==="localhost")){
     window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
   }
