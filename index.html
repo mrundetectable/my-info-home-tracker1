@@ -38,7 +38,23 @@
     .secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
     .danger{color:var(--danger);background:transparent;border:1px solid var(--line)}
     .add-btn{width:100%;margin-top:2px}
-    .filters{display:flex;gap:8px;margin:0 0 13px}
+    .filters{display:flex;gap:8px;margin:0 0 13px;overflow-x:auto;padding-bottom:2px}
+    .toolbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 12px}
+    .toolbar input,.toolbar select{min-width:0}
+    .view-toggle{display:flex;gap:7px;margin:0 0 12px}
+    .view-toggle button{flex:1}
+    .overdue{color:var(--danger);font-weight:750}
+    .details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+    .details summary{font-size:13px;font-weight:750;color:var(--accent);cursor:pointer;min-height:36px;display:flex;align-items:center}
+    .detail-grid{display:grid;gap:9px;margin-top:8px}
+    .detail-grid label{margin-bottom:4px}
+    .detail-grid input,.detail-grid textarea{width:100%;min-height:42px;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--surface);color:var(--text);font:inherit;font-size:13px}
+    .detail-grid textarea{min-height:76px;resize:vertical}
+    .calendar-day{font-size:13px;font-weight:750;color:var(--muted);margin:12px 2px 7px}
+    .calendar-item{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface);margin-bottom:7px}
+    .calendar-item strong{font-size:14px;overflow-wrap:anywhere}
+    .calendar-item small{color:var(--muted);white-space:nowrap}
+    .calendar-empty{padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
     .chip{flex:0 0 auto;min-width:64px;border-radius:999px;min-height:39px}
     .chip.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
     .video-list{display:flex;flex-direction:column;gap:11px}
@@ -142,10 +158,20 @@
   </section>
 
   <section aria-label="Videos">
+    <div class="toolbar">
+      <input id="search" type="text" placeholder="Search topics…" aria-label="Search topics">
+      <select id="stage-filter" aria-label="Filter by stage"><option value="All">All stages</option></select>
+      <select id="status-filter" aria-label="Filter by status"><option value="All">All statuses</option><option>Not yet</option><option>Scheduled</option><option>Uploaded</option></select>
+      <select id="sort-order" aria-label="Sort videos"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="date">Upload date</option></select>
+    </div>
     <div class="filters" role="group" aria-label="Filter videos">
       <button class="chip active" data-filter="All" aria-pressed="true">All</button>
       <button class="chip" data-filter="Long" aria-pressed="false">Long</button>
       <button class="chip" data-filter="Short" aria-pressed="false">Short</button>
+    </div>
+    <div class="view-toggle" role="group" aria-label="Video display">
+      <button class="btn secondary" id="list-view" aria-pressed="true">List view</button>
+      <button class="btn secondary" id="calendar-view" aria-pressed="false">Calendar view</button>
     </div>
     <div class="video-list" id="video-list"></div>
   </section>
@@ -233,13 +259,35 @@ import {
     const scheduled = videos.filter(v=>v.status==="Scheduled").length;
     const uploaded = videos.filter(v=>v.status==="Uploaded").length;
     $("#summary").textContent = `${inProgress} in progress · ${scheduled} scheduled · ${uploaded} uploaded`;
-    const visible = videos.filter(v=>filter==="All"||v.length===filter)
-      .sort((a,b)=>(a.status==="Uploaded")-(b.status==="Uploaded") || b.createdAt-a.createdAt);
-    if (!visible.length) { listEl.innerHTML='<div class="empty">No videos here yet.</div>'; return; }
+    const query = $("#search").value.trim().toLocaleLowerCase();
+    const stageFilter = $("#stage-filter").value;
+    const statusFilter = $("#status-filter").value;
+    const sortOrder = $("#sort-order").value;
+    const visible = videos.filter(v=>(filter==="All"||v.length===filter)
+      && (stageFilter==="All"||String(v.stage)===stageFilter)
+      && (statusFilter==="All"||v.status===statusFilter)
+      && (!query||v.topic.toLocaleLowerCase().includes(query)||String(v.notes||"").toLocaleLowerCase().includes(query)))
+      .sort((a,b)=>sortOrder==="oldest"?(a.createdAt||0)-(b.createdAt||0)
+        :sortOrder==="date"?(a.date||"9999").localeCompare(b.date||"9999")
+        :(a.status==="Uploaded")-(b.status==="Uploaded") || (b.createdAt||0)-(a.createdAt||0));
+    if (!visible.length) { listEl.innerHTML='<div class="empty">No matching videos found.</div>'; return; }
+    if (viewMode==="calendar") {
+      const dated = visible.filter(v=>v.date).sort((a,b)=>a.date.localeCompare(b.date));
+      const undated = visible.filter(v=>!v.date);
+      if (!dated.length) { listEl.innerHTML='<div class="calendar-empty">No videos have an upload date yet.</div>'; return; }
+      const groups = {};
+      dated.forEach(v=>(groups[v.date] ||= []).push(v));
+      listEl.innerHTML = Object.entries(groups).map(([date,items])=>
+        `<div class="calendar-day">${esc(fmtDate(date))}</div>` + items.map(v=>
+          `<div class="calendar-item"><strong>${esc(v.topic)}</strong><small>${esc(v.length)} · ${esc(v.status)}</small></div>`).join("")
+      ).join("") + (undated.length?`<div class="calendar-day">No upload date</div>`+undated.map(v=>`<div class="calendar-item"><strong>${esc(v.topic)}</strong><small>${esc(v.length)} · ${esc(v.status)}</small></div>`).join(""):"");
+      return;
+    }
     listEl.innerHTML = visible.map(v=>{
       const stage=STAGES[v.stage], count=v.stage+1, isLast=v.stage===7;
       const progress=STAGES.map((_,i)=>`<i class="${i<=v.stage?"done":""}"></i>`).join("");
       const statusClass=v.status==="Uploaded"?"uploaded":v.status==="Scheduled"?"scheduled":"";
+      const isOverdue=v.status==="Scheduled"&&v.date&&v.date<todayISO();
       const dateText=v.date?`· ${fmtDate(v.date)}`:"";
       const nextLabel=isLast?"Mark uploaded":`Next: ${STAGES[v.stage+1]}`;
       const nextDisabled=isLast&&v.status==="Uploaded";
@@ -250,7 +298,16 @@ import {
         </div></div>
         <div class="stage-line"><strong>${esc(stage)}</strong><span>${count} of 8</span></div>
         <div class="progress" aria-label="${count} of 8 stages complete">${progress}</div>
-        <div class="meta"><span class="status-pill ${statusClass}">${esc(v.status)}</span><span class="date-text">${dateText}</span></div>
+        <div class="meta"><span class="status-pill ${statusClass}">${esc(v.status)}</span><span class="date-text ${isOverdue?"overdue":""}">${isOverdue?"Overdue · ":""}${dateText}</span></div>
+        <details class="details">
+          <summary>Video details & notes</summary>
+          <div class="detail-grid">
+            <div><label>Research notes</label><textarea class="notes-edit" placeholder="Facts, sources to verify, hook ideas…">${esc(v.notes||"")}</textarea></div>
+            <div><label>Script link</label><input class="script-url-edit" type="url" placeholder="https://…" value="${esc(v.scriptUrl||"")}"></div>
+            <div><label>Research link</label><input class="research-url-edit" type="url" placeholder="https://…" value="${esc(v.researchUrl||"")}"></div>
+            <div><label>Footage link</label><input class="footage-url-edit" type="url" placeholder="https://…" value="${esc(v.footageUrl||"")}"></div>
+          </div>
+        </details>
         <div class="card-actions">
           <button class="btn primary next-btn" type="button" ${nextDisabled?"disabled":""}>${nextLabel}</button>
           <div class="edit-grid">
@@ -343,7 +400,7 @@ import {
     Object.assign(v,patch); saveLocal(); render(); syncAll();
   }
 
-  STAGES.forEach((s,i)=>$("#stage").add(new Option(s,i)));
+  STAGES.forEach((s,i)=>{$("#stage").add(new Option(s,i));$("#stage-filter").add(new Option(s,s=== "Topic"?"0":String(i)));});
   document.querySelectorAll("[data-length]").forEach(btn=>btn.addEventListener("click",()=>{
     selectedLength=btn.dataset.length;
     document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b===btn)));
@@ -356,18 +413,25 @@ import {
   $("#add-form").addEventListener("submit",e=>{
     e.preventDefault();
     const topic=$("#topic").value.trim(); if(!topic)return;
-    videos.push({id:uid(),topic,length:selectedLength,stage:Number($("#stage").value),status:$("#status").value,date:$("#date").value,createdAt:Date.now(),example:false});
+    videos.push({id:uid(),topic,length:selectedLength,stage:Number($("#stage").value),status:$("#status").value,date:$("#date").value,createdAt:Date.now(),notes:"",scriptUrl:"",researchUrl:"",footageUrl:"",example:false});
     saveLocal(); render(); syncAll(); $("#add-form").reset(); $("#stage").value="0"; $("#status").value="Not yet";
     selectedLength="Short";
     document.querySelectorAll("[data-length]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.length==="Short")));
     $("#topic").focus();
   });
+  ["search","stage-filter","status-filter","sort-order"].forEach(id=>$("#"+id).addEventListener(id==="search"?"input":"change",render));
+  $("#list-view").addEventListener("click",()=>{viewMode="list";$("#list-view").setAttribute("aria-pressed","true");$("#calendar-view").setAttribute("aria-pressed","false");render();});
+  $("#calendar-view").addEventListener("click",()=>{viewMode="calendar";$("#list-view").setAttribute("aria-pressed","false");$("#calendar-view").setAttribute("aria-pressed","true");render();});
   listEl.addEventListener("change",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
     const id=card.dataset.id;
     if(e.target.matches(".stage-edit")) update(id,{stage:Number(e.target.value)});
     if(e.target.matches(".status-edit")) update(id,{status:e.target.value});
     if(e.target.matches(".date-edit")) update(id,{date:e.target.value});
+    if(e.target.matches(".notes-edit")) update(id,{notes:e.target.value});
+    if(e.target.matches(".script-url-edit")) update(id,{scriptUrl:e.target.value.trim()});
+    if(e.target.matches(".research-url-edit")) update(id,{researchUrl:e.target.value.trim()});
+    if(e.target.matches(".footage-url-edit")) update(id,{footageUrl:e.target.value.trim()});
   });
   listEl.addEventListener("click",e=>{
     const card=e.target.closest("[data-id]"); if(!card)return;
